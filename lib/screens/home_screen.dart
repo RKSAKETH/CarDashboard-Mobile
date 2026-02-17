@@ -8,6 +8,7 @@ import '../widgets/app_drawer.dart';
 import '../models/speed_data.dart';
 import '../services/location_service.dart';
 import '../services/history_service.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -273,9 +274,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.emoji_events, color: Color(0xFFFFD700)),
+                        icon: const Icon(Icons.person, color: Colors.white),
                         onPressed: () {
-                          // Premium feature
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProfileScreen(),
+                            ),
+                          );
                         },
                       ),
                     ],
