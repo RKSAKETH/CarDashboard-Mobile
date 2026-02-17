@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "723962598173",
+    "project_id": "car-dashboard-mobile",
+    "storage_bucket": "car-dashboard-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:723962598173:android:df77721b09eca5aeeec7f4",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "723962598173-c53h70o81563f1372v300ti5j22716ia.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.app",
+            "certificate_hash": "575c9dd890c2224394ee47a7a107206bc3872428"
+          }
+        },
+        {
+          "client_id": "723962598173-a8qvlla88l182d7vff8mtnvi0rigpn7e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyACX0_JsFQNIm-HyiB5mLM3uoQSzr_Ce9Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "723962598173-a8qvlla88l182d7vff8mtnvi0rigpn7e.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "723962598173-bc1bjv9aj4s72hjcqjb0fph5ombr8sqn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
