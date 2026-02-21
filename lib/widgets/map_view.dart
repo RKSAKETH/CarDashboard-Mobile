@@ -24,15 +24,18 @@ class _MapViewState extends State<MapView> {
     final position = widget.currentPosition;
     
     if (position == null) {
-      return const Center(
+      final textSecondary = Theme.of(context).brightness == Brightness.dark
+          ? Colors.white70
+          : Colors.black54;
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off, size: 64, color: Colors.white38),
-            SizedBox(height: 16),
+            Icon(Icons.location_off, size: 64, color: textSecondary),
+            const SizedBox(height: 16),
             Text(
               'Waiting for GPS signal...',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+              style: TextStyle(color: textSecondary, fontSize: 16),
             ),
           ],
         ),
@@ -115,7 +118,7 @@ class _MapViewState extends State<MapView> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFF2A2A2A),
+              color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -127,8 +130,8 @@ class _MapViewState extends State<MapView> {
             child: Center(
               child: Text(
                 widget.speed.toInt().toString(),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
