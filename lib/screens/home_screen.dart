@@ -6,11 +6,14 @@ import '../widgets/gauge_view.dart';
 import '../widgets/digital_view.dart';
 import '../widgets/map_view.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/ambient_light_overlay.dart';
 import '../models/speed_data.dart';
 import '../services/location_service.dart';
 import '../services/history_service.dart';
 import '../services/voice_assistant_service.dart';
+
 import 'profile_screen.dart';
+import '../services/incident_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -73,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _requestPermissions();
     _loadTotalDistance();
     _initVoice();
+    IncidentService.instance.start(); // start global monitoring
   }
 
   Future<void> _initVoice() async {
@@ -146,6 +150,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _timer?.cancel();
     _pulseController.dispose();
     _voice.dispose();
+    IncidentService.instance.stop();
     super.dispose();
   }
 
@@ -338,6 +343,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isListening = _voice.isListening;
+    // ── Ambient light state ──
+    final lightMode = AmbientLightProvider.of(context);
+    final accent    = LightThemePalette.accent(lightMode);
+    final bg        = LightThemePalette.background(lightMode);
+    final surface   = LightThemePalette.surface(lightMode);
+    final textPri   = LightThemePalette.textPrimary(lightMode);
+    final textSec   = LightThemePalette.textSecondary(lightMode);
 
     return Scaffold(
       drawer: const AppDrawer(),
@@ -345,36 +357,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Column(
           children: [
             // ── Top Bar ──
-            Padding(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              color: bg,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Builder(
                     builder: (ctx) => IconButton(
-                      icon: const Icon(Icons.menu, color: Colors.white),
+                      icon: Icon(Icons.menu, color: textPri),
                       onPressed: () => Scaffold.of(ctx).openDrawer(),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Speedometer',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: textPri,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Row(
                     children: [
+                      // ── Live lux indicator ──
+                      const LuxIndicator(),
+                      const SizedBox(width: 4),
                       IconButton(
-                        icon: const Icon(Icons.history, color: Colors.white),
+                        icon: Icon(Icons.history, color: textPri),
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const HistoryScreen()),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.person, color: Colors.white),
+                        icon: Icon(Icons.person, color: textPri),
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -394,25 +411,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   // GPS status
                   Icon(
                     Icons.gps_fixed,
-                    color: _hasGPS ? const Color(0xFF00FF00) : Colors.grey,
+                    color: _hasGPS ? accent : Colors.grey,
                     size: 14,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'GPS: ${_hasGPS ? "Yes" : "No"}  ($_satellites sat)',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: TextStyle(color: textSec, fontSize: 12),
                   ),
                   const Spacer(),
                   // Voice status chip
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isListening
-                          ? const Color(0xFF00C853).withAlpha(40)
-                          : Colors.white10,
+                      color: isListening ? accent.withAlpha(40) : surface,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isListening ? const Color(0xFF00C853) : Colors.white24,
+                        color: isListening ? accent : accent.withAlpha(60),
                       ),
                     ),
                     child: Row(
@@ -421,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Icon(
                           isListening ? Icons.mic : Icons.mic_none,
                           size: 12,
-                          color: isListening ? const Color(0xFF00C853) : Colors.white54,
+                          color: isListening ? accent : textSec,
                         ),
                         const SizedBox(width: 4),
                         ConstrainedBox(
@@ -429,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: Text(
                             _voiceStatus,
                             style: TextStyle(
-                              color: isListening ? const Color(0xFF00C853) : Colors.white54,
+                              color: isListening ? accent : textSec,
                               fontSize: 11,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -461,7 +477,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
 
             // ── Bottom Stats and Controls ──
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              color: bg,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Column(
                 children: [
@@ -471,45 +489,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Text(
                         _totalDistance.toStringAsFixed(3).replaceAll('.', '').padLeft(6, '0'),
-                        style: const TextStyle(
-                          color: Colors.white38,
+                        style: TextStyle(
+                          color: textSec,
                           fontSize: 24,
                           fontFamily: 'monospace',
                           letterSpacing: 4,
                         ),
                       ),
-                      const Text('km', style: TextStyle(color: Colors.white38, fontSize: 16)),
-                      Container(
+                      Text('km', style: TextStyle(color: textSec, fontSize: 16)),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
+                          color: surface,
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: accent.withAlpha(60)),
                         ),
                         child: DropdownButton<VehicleType>(
                           value: _vehicleType,
-                          dropdownColor: const Color(0xFF2A2A2A),
+                          dropdownColor: surface,
                           underline: const SizedBox(),
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                          icon: Icon(Icons.arrow_drop_down, color: textPri),
                           items: [
                             DropdownMenuItem(
                               value: VehicleType.motorcycle,
-                              child: Row(children: const [
-                                Icon(Icons.motorcycle, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
+                              child: Row(children: [
+                                Icon(Icons.motorcycle, color: textPri, size: 20),
+                                const SizedBox(width: 8),
                               ]),
                             ),
                             DropdownMenuItem(
                               value: VehicleType.car,
-                              child: Row(children: const [
-                                Icon(Icons.directions_car, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
+                              child: Row(children: [
+                                Icon(Icons.directions_car, color: textPri, size: 20),
+                                const SizedBox(width: 8),
                               ]),
                             ),
                             DropdownMenuItem(
                               value: VehicleType.bicycle,
-                              child: Row(children: const [
-                                Icon(Icons.directions_bike, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
+                              child: Row(children: [
+                                Icon(Icons.directions_bike, color: textPri, size: 20),
+                                const SizedBox(width: 8),
                               ]),
                             ),
                           ],
@@ -524,27 +544,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 12),
 
                   // Timer
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
+                      color: surface,
                       borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: accent.withAlpha(40)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.map, color: Colors.white, size: 20),
+                        Icon(Icons.map, color: accent, size: 20),
                         const SizedBox(width: 16),
                         Text(
                           _formatDuration(_elapsed),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textPri,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(width: 16),
-                        const Icon(Icons.photo_library, color: Colors.white, size: 20),
+                        Icon(Icons.photo_library, color: accent, size: 20),
                       ],
                     ),
                   ),
@@ -554,25 +576,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   // Stats Cards
                   Row(
                     children: [
-                      Expanded(child: _buildStatCard('Distance', '${_totalDistance.toStringAsFixed(0)} km')),
+                      Expanded(child: _buildStatCard(
+                        'Distance',
+                        '${_totalDistance.toStringAsFixed(0)} km',
+                        accent, surface, textPri, textSec,
+                      )),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildStatCard('Avg', '${_avgSpeed.toStringAsFixed(0)} km/h')),
+                      Expanded(child: _buildStatCard(
+                        'Avg',
+                        '${_avgSpeed.toStringAsFixed(0)} km/h',
+                        accent, surface, textPri, textSec,
+                      )),
                       const SizedBox(width: 8),
-                      Expanded(child: _buildStatCard('Max', '${_maxSpeed.toStringAsFixed(0)} km/h')),
+                      Expanded(child: _buildStatCard(
+                        'Max',
+                        '${_maxSpeed.toStringAsFixed(0)} km/h',
+                        accent, surface, textPri, textSec,
+                      )),
                     ],
                   ),
 
                   const SizedBox(height: 12),
 
-                  // START/STOP Button
+                  // START/STOP Button — colour follows ambient mode
                   GestureDetector(
                     onTap: _toggleTracking,
-                    child: Container(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00FF00),
+                        color: accent,
                         borderRadius: BorderRadius.circular(50),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withAlpha(80),
+                            blurRadius: 14,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -600,17 +642,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
 
             // ── Bottom Navigation ──
-            Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
-                border: Border(top: BorderSide(color: Color(0xFF2A2A2A), width: 1)),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              decoration: BoxDecoration(
+                color: bg,
+                border: Border(top: BorderSide(color: accent.withAlpha(60), width: 1)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(Icons.speed, 'Gauge', 0),
-                  _buildNavItem(Icons.filter_9_plus, 'Digital', 1),
-                  _buildNavItem(Icons.map, 'Map', 2),
+                  _buildNavItem(Icons.speed, 'Gauge', 0, accent, textSec),
+                  _buildNavItem(Icons.filter_9_plus, 'Digital', 1, accent, textSec),
+                  _buildNavItem(Icons.map, 'Map', 2, accent, textSec),
                 ],
               ),
             ),
@@ -668,19 +711,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ─── Widgets ───
 
-  Widget _buildStatCard(String label, String value) {
-    return Container(
+  Widget _buildStatCard(
+    String label,
+    String value,
+    Color accent,
+    Color surface,
+    Color textPri,
+    Color textSec,
+  ) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A2A2A),
+        color: surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withAlpha(40)),
       ),
       child: Column(
         children: [
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textPri,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -688,29 +740,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
+            style: TextStyle(color: textSec, fontSize: 11),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
+  Widget _buildNavItem(IconData icon, String label, int index, Color accent, Color textSec) {
     final isSelected = _currentIndex == index;
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isSelected ? Colors.white : Colors.white38, size: 24),
+            Icon(icon, color: isSelected ? accent : textSec, size: 24),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white38,
+                color: isSelected ? accent : textSec,
                 fontSize: 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],
