@@ -462,18 +462,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
             // ── Main View ──
             Expanded(
-              child: Stack(
-                children: [
-                  _buildCurrentView(),
-                  // Floating Mic Button
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    child: Center(child: _buildMicButton()),
-                  ),
-                ],
-              ),
+              child: _buildCurrentView(),
             ),
 
             // ── Bottom Stats and Controls ──
@@ -598,44 +587,51 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                   const SizedBox(height: 12),
 
-                  // START/STOP Button — colour follows ambient mode
-                  GestureDetector(
-                    onTap: _toggleTracking,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: accent,
-                        borderRadius: BorderRadius.circular(50),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withAlpha(80),
-                            blurRadius: 14,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _isTracking ? 'STOP' : 'START',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
+                  // START/STOP Button and Mic Button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _toggleTracking,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: BorderRadius.circular(50),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: accent.withAlpha(80),
+                                  blurRadius: 14,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _isTracking ? 'STOP' : 'START',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Icon(
+                                  _isTracking ? Icons.stop : Icons.play_arrow,
+                                  color: Colors.black,
+                                  size: 26,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            _isTracking ? Icons.stop : Icons.play_arrow,
-                            color: Colors.black,
-                            size: 26,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 16),
+                      _buildMicButton(),
+                    ],
                   ),
                 ],
               ),
