@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import '../screens/incident_logger_screen.dart';
+import '../services/ambient_light_service.dart';
+import 'ambient_light_overlay.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -102,6 +105,42 @@ class AppDrawer extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.shield,
+                    iconColor: const Color(0xFFFF1744),
+                    title: 'Black Box Logger',
+                    subtitle: 'Incident detection & SOS',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const IncidentLoggerScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.brightness_auto,
+                    iconColor: const Color(0xFFFF8C00),
+                    title: 'Adaptive Light UI',
+                    subtitle: 'Auto cockpit theme by lux',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SettingsScreen(
+                            initialSection: SettingsSection.ambientLight,
+                          ),
                         ),
                       );
                     },
@@ -426,9 +465,21 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+enum SettingsSection { general, ambientLight }
 
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({
+    super.key,
+    this.initialSection = SettingsSection.general,
+  });
+
+  final SettingsSection initialSection;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -437,19 +488,21 @@ class SettingsScreen extends StatelessWidget {
       ),
       body: ListView(
         children: [
+          // ─── General ───────────────────────────────────────────────────
+          const _SectionHeader(title: 'GENERAL'),
           SwitchListTile(
             title: const Text('Keep screen on', style: TextStyle(color: Colors.white)),
             subtitle: const Text('Prevent screen from turning off', style: TextStyle(color: Colors.white70)),
             value: true,
             onChanged: (value) {},
-            activeColor: const Color(0xFF00FF00),
+            activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
           ),
           SwitchListTile(
             title: const Text('Sound effects', style: TextStyle(color: Colors.white)),
             subtitle: const Text('Play sounds during tracking', style: TextStyle(color: Colors.white70)),
             value: false,
             onChanged: (value) {},
-            activeColor: const Color(0xFF00FF00),
+            activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
           ),
           ListTile(
             title: const Text('Speed unit', style: TextStyle(color: Colors.white)),
@@ -462,6 +515,428 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Kilometers', style: TextStyle(color: Colors.white70)),
             trailing: const Icon(Icons.chevron_right, color: Colors.white70),
             onTap: () {},
+          ),
+
+          // ─── Ambient Light ─────────────────────────────────────────────
+          const _SectionHeader(title: 'AMBIENT LIGHT ADAPTIVE UI'),
+          const _AmbientLightSettings(),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Section Header ──────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = LightThemePalette.accent(AmbientLightProvider.of(context));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: accent,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Ambient Light Settings Panel ────────────────────────────────────────────
+
+class _AmbientLightSettings extends StatefulWidget {
+  const _AmbientLightSettings();
+
+  @override
+  State<_AmbientLightSettings> createState() => _AmbientLightSettingsState();
+}
+
+class _AmbientLightSettingsState extends State<_AmbientLightSettings> {
+  LightMode? _override; // null = auto
+
+  void _applyOverride(LightMode? mode) {
+    setState(() => _override = mode);
+    if (mode != null) {
+      AmbientLightService.instance.forceMode(mode);
+    } else {
+      // Re-enable sensor
+      AmbientLightService.instance.start();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mode   = AmbientLightProvider.of(context);
+    final accent = LightThemePalette.accent(mode);
+    final lux    = AmbientLightService.instance.currentLux;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Live Lux Card ──
+          _LiveLuxCard(mode: mode, accent: accent, lux: lux),
+
+          const SizedBox(height: 16),
+
+          // ── Mode Description ──
+          _ModeDescriptionCard(mode: mode, accent: accent),
+
+          const SizedBox(height: 16),
+
+          // ── Manual Override ──
+          Text(
+            'Override Mode (for testing)',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          _OverrideSelector(
+            selectedOverride: _override,
+            accent: accent,
+            onChanged: _applyOverride,
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Hysteresis explainer ──
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: LightThemePalette.surface(mode),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: accent.withAlpha(40)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, color: accent, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'How It Works',
+                      style: TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const _InfoRow(
+                  icon: Icons.wb_sunny,
+                  color: Color(0xFF00FF00),
+                  title: '☀️ Day  (> 200 lux)',
+                  body: 'Neon green, high-contrast whites. Legible in direct sunlight.',
+                ),
+                const _InfoRow(
+                  icon: Icons.wb_twilight,
+                  color: Color(0xFFFFBF00),
+                  title: '🌆 Twilight  (10–200 lux)',
+                  body: 'Soft amber, reduced brightness. Ideal for dusk or garages.',
+                ),
+                const _InfoRow(
+                  icon: Icons.nightlight_round,
+                  color: Color(0xFFFF2400),
+                  title: '🌙 Night  (< 10 lux)',
+                  body: 'Aviation red-shift. Preserves rhodopsin / night vision.',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '⟳  Hysteresis: transitions are debounced by 600 ms to prevent flicker when a shadow briefly passes over the sensor.',
+                  style: TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Live Lux Meter Card ─────────────────────────────────────────────────────
+
+class _LiveLuxCard extends StatelessWidget {
+  const _LiveLuxCard({
+    required this.mode,
+    required this.accent,
+    required this.lux,
+  });
+
+  final LightMode mode;
+  final Color accent;
+  final double lux;
+
+  @override
+  Widget build(BuildContext context) {
+    // Normalise lux to 0-1 for the progress bar (cap at 1000 lux)
+    final ratio = (lux / 1000.0).clamp(0.0, 1.0);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LightThemePalette.surface(mode),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withAlpha(80)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withAlpha(30),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Live Ambient Light',
+                style: TextStyle(
+                  color: LightThemePalette.textSecondary(mode),
+                  fontSize: 12,
+                ),
+              ),
+              const LuxIndicator(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Big lux number
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                lux.round().toString(),
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8, left: 6),
+                child: Text(
+                  'lux',
+                  style: TextStyle(
+                    color: accent.withAlpha(160),
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                LightThemePalette.icon(mode),
+                color: accent,
+                size: 40,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Lux bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              backgroundColor: Colors.white10,
+              valueColor: AlwaysStoppedAnimation<Color>(accent),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('0', style: TextStyle(color: Colors.white24, fontSize: 10)),
+              Text('500', style: TextStyle(color: Colors.white24, fontSize: 10)),
+              Text('1 000 lux', style: TextStyle(color: Colors.white24, fontSize: 10)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Mode Description Card ───────────────────────────────────────────────────
+
+class _ModeDescriptionCard extends StatelessWidget {
+  const _ModeDescriptionCard({required this.mode, required this.accent});
+  final LightMode mode;
+  final Color accent;
+
+  String get _description => switch (mode) {
+        LightMode.day      => 'High-contrast display. Optimised for bright sunlight and open roads.',
+        LightMode.twilight => 'Amber dimmed UI. Comfortable for dusk driving and underground parking.',
+        LightMode.night    => 'Aviation red-shift active. Your eyes\' rhodopsin is preserved — natural night vision intact.',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withAlpha(30), accent.withAlpha(10)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withAlpha(80)),
+      ),
+      child: Row(
+        children: [
+          Icon(LightThemePalette.icon(mode), color: accent, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LightThemePalette.label(mode),
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _description,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Override Selector ────────────────────────────────────────────────────────
+
+class _OverrideSelector extends StatelessWidget {
+  const _OverrideSelector({
+    required this.selectedOverride,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final LightMode? selectedOverride;
+  final Color accent;
+  final ValueChanged<LightMode?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final modes = [
+      (null,               '🔄 Auto',     const Color(0xFFFFFFFF).withAlpha(130)),
+      (LightMode.day,      '☀️ Day',      const Color(0xFF00FF00)),
+      (LightMode.twilight, '🌆 Twilight', const Color(0xFFFFBF00)),
+      (LightMode.night,    '🌙 Night',    const Color(0xFFFF2400)),
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: modes.map((entry) {
+        final (modeVal, label, color) = entry;
+        final isSelected = selectedOverride == modeVal;
+        return GestureDetector(
+          onTap: () => onChanged(modeVal),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? color.withAlpha(40) : Colors.white10,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected ? color : Colors.white24,
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : Colors.white54,
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─── Info Row ────────────────────────────────────────────────────────────────
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 3,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  body,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+              ],
+            ),
           ),
         ],
       ),
