@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import '../screens/incident_logger_screen.dart';
 import '../services/ambient_light_service.dart';
 import 'ambient_light_overlay.dart';
+import '../l10n/app_localizations.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -31,6 +32,15 @@ class AppDrawer extends StatelessWidget {
     final textPri = LightThemePalette.textPrimary(mode);
     final textSec = LightThemePalette.textSecondary(mode);
     final isDark = isDarkModeNotifier.value;
+    final l10n = AppLocalizations.of(context)!;
+    final currentLocale = localeNotifier.value;
+    final localeName = switch (currentLocale.languageCode) {
+      'hi' => 'Hindi',
+      'te' => 'Telugu',
+      'ta' => 'Tamil',
+      'ml' => 'Malayalam',
+      _ => 'English',
+    };
 
     return Drawer(
       backgroundColor: bg,
@@ -106,7 +116,7 @@ class AppDrawer extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.settings,
-                    title: 'Settings',
+                    title: l10n.settings,
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -126,7 +136,7 @@ class AppDrawer extends StatelessWidget {
                       size: 28,
                     ),
                     title: Text(
-                      'Dark Mode',
+                      l10n.darkMode,
                       style: TextStyle(
                         color: textPri,
                         fontSize: 16,
@@ -182,18 +192,18 @@ class AppDrawer extends StatelessWidget {
                   _buildMenuItem(
                     context,
                     icon: Icons.language,
-                    title: 'Language',
-                    subtitle: 'English',
+                    title: l10n.language,
+                    subtitle: localeName,
                     onTap: () {
                       Navigator.pop(context);
-                      _showLanguageDialog(context);
+                      showLanguageDialog(context);
                     },
                   ),
-                  
+
                   _buildMenuItem(
                     context,
                     icon: Icons.star,
-                    title: 'Rate Us',
+                    title: l10n.rateUs,
                     subtitle: 'Rate on Play Store',
                     onTap: () {
                       Navigator.pop(context);
@@ -201,43 +211,43 @@ class AppDrawer extends StatelessWidget {
                       _launchURL('https://play.google.com');
                     },
                   ),
-                  
+
                   _buildMenuItem(
                     context,
                     icon: Icons.feedback,
-                    title: 'Feedback',
+                    title: l10n.feedback,
                     subtitle: 'Send us your thoughts',
                     onTap: () {
                       Navigator.pop(context);
                       _showFeedbackDialog(context);
                     },
                   ),
-                  
+
                   _buildMenuItem(
                     context,
                     icon: Icons.share,
-                    title: 'Share with Friends',
+                    title: l10n.shareWithFriends,
                     onTap: () {
                       _shareApp();
                     },
                   ),
-                  
+
                   _buildMenuItem(
                     context,
                     icon: Icons.privacy_tip,
-                    title: 'Privacy Policy',
+                    title: l10n.privacyPolicy,
                     onTap: () {
                       Navigator.pop(context);
                       _showPrivacyPolicy(context);
                     },
                   ),
-                  
+
                   const Divider(color: Color(0xFF2A2A2A), height: 1),
-                  
+
                   _buildMenuItem(
                     context,
                     icon: Icons.info,
-                    title: 'About',
+                    title: l10n.about,
                     subtitle: 'Version 1.0.0',
                     onTap: () {
                       Navigator.pop(context);
@@ -295,17 +305,18 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _showPremiumDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         title: Row(
-          children: const [
-            Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 28),
-            SizedBox(width: 12),
+          children: [
+            const Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 28),
+            const SizedBox(width: 12),
             Text(
-              'Premium',
-              style: TextStyle(color: Colors.white),
+              l10n.premium,
+              style: const TextStyle(color: Colors.white),
             ),
           ],
         ),
@@ -340,30 +351,33 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  void _showLanguageDialog(BuildContext context) {
+  void showLanguageDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final currentLocale = localeNotifier.value;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text(
-          'Select Language',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          l10n.selectLanguage,
+          style: const TextStyle(color: Colors.white),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildLanguageOption(context, 'English', true),
-            _buildLanguageOption(context, 'Spanish', false),
-            _buildLanguageOption(context, 'French', false),
-            _buildLanguageOption(context, 'German', false),
-            _buildLanguageOption(context, 'Hindi', false),
+            _buildLanguageOption(context, 'English', const Locale('en'), currentLocale == const Locale('en')),
+            _buildLanguageOption(context, 'Hindi', const Locale('hi'), currentLocale == const Locale('hi')),
+            _buildLanguageOption(context, 'Telugu', const Locale('te'), currentLocale == const Locale('te')),
+            _buildLanguageOption(context, 'Tamil', const Locale('ta'), currentLocale == const Locale('ta')),
+            _buildLanguageOption(context, 'Malayalam', const Locale('ml'), currentLocale == const Locale('ml')),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLanguageOption(BuildContext context, String language, bool isSelected) {
+  Widget _buildLanguageOption(BuildContext context, String language, Locale locale, bool isSelected) {
     return ListTile(
       title: Text(
         language,
@@ -373,6 +387,7 @@ class AppDrawer extends StatelessWidget {
           ? const Icon(Icons.check, color: Color(0xFF00FF00))
           : null,
       onTap: () {
+        localeNotifier.value = locale;
         Navigator.pop(context);
       },
     );
@@ -520,43 +535,61 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final currentLocale = localeNotifier.value;
+    final localeName = switch (currentLocale.languageCode) {
+      'hi' => 'Hindi',
+      'te' => 'Telugu',
+      'ta' => 'Tamil',
+      'ml' => 'Malayalam',
+      _ => 'English',
+    };
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(l10n.settings),
       ),
       body: ListView(
         children: [
           // ─── General ───────────────────────────────────────────────────
-          const _SectionHeader(title: 'GENERAL'),
+          _SectionHeader(title: l10n.general),
           SwitchListTile(
-            title: const Text('Keep screen on', style: TextStyle(color: Colors.white)),
+            title: Text(l10n.keepScreenOn, style: const TextStyle(color: Colors.white)),
             subtitle: const Text('Prevent screen from turning off', style: TextStyle(color: Colors.white70)),
             value: true,
             onChanged: (value) {},
             activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
           ),
           SwitchListTile(
-            title: const Text('Sound effects', style: TextStyle(color: Colors.white)),
+            title: Text(l10n.soundEffects, style: const TextStyle(color: Colors.white)),
             subtitle: const Text('Play sounds during tracking', style: TextStyle(color: Colors.white70)),
             value: false,
             onChanged: (value) {},
             activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
           ),
           ListTile(
-            title: const Text('Speed unit', style: TextStyle(color: Colors.white)),
+            title: Text(l10n.speedUnit, style: const TextStyle(color: Colors.white)),
             subtitle: const Text('km/h', style: TextStyle(color: Colors.white70)),
             trailing: const Icon(Icons.chevron_right, color: Colors.white70),
             onTap: () {},
           ),
           ListTile(
-            title: const Text('Distance unit', style: TextStyle(color: Colors.white)),
+            title: Text(l10n.distanceUnit, style: const TextStyle(color: Colors.white)),
             subtitle: const Text('Kilometers', style: TextStyle(color: Colors.white70)),
             trailing: const Icon(Icons.chevron_right, color: Colors.white70),
             onTap: () {},
           ),
+          ListTile(
+            title: Text(l10n.language, style: const TextStyle(color: Colors.white)),
+            subtitle: Text(localeName, style: const TextStyle(color: Colors.white70)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            onTap: () {
+              const AppDrawer().showLanguageDialog(context);
+            },
+          ),
 
           // ─── Ambient Light ─────────────────────────────────────────────
-          const _SectionHeader(title: 'AMBIENT LIGHT ADAPTIVE UI'),
+          _SectionHeader(title: l10n.ambientLightTitle),
           const _AmbientLightSettings(),
         ],
       ),

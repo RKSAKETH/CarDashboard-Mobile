@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
+import '../l10n/app_localizations.dart';
 
 /// Example screen demonstrating Firestore usage
 /// Shows user profile and trip statistics
@@ -10,22 +11,23 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final user = AuthService().currentUser;
 
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Profile'),
+          title: Text(l10n.profile),
         ),
-        body: const Center(
-          child: Text('Please login to view profile'),
+        body: Center(
+          child: Text(l10n.pleaseLogin),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l10n.profile),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -41,17 +43,17 @@ class ProfileScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // User Profile Card
-            _buildUserProfileCard(user.uid),
+            _buildUserProfileCard(context, user.uid),
             
             const SizedBox(height: 24),
             
             // Trip Statistics Card
-            _buildTripStatisticsCard(user.uid),
+            _buildTripStatisticsCard(context, user.uid),
             
             const SizedBox(height: 24),
             
             // Recent Trips
-            _buildRecentTrips(user.uid),
+            _buildRecentTrips(context, user.uid),
 
             const SizedBox(height: 32),
             
@@ -65,7 +67,7 @@ class ProfileScreen extends StatelessWidget {
                   }
                 },
                 icon: const Icon(Icons.logout),
-                label: const Text('LOGOUT'),
+                label: Text(l10n.logout.toUpperCase()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red.withOpacity(0.2),
                   foregroundColor: Colors.red,
@@ -80,10 +82,11 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserProfileCard(String uid) {
+  Widget _buildUserProfileCard(BuildContext context, String uid) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirestoreService().getUserProfileStream(uid),
       builder: (context, snapshot) {
+        final l10n = AppLocalizations.of(context)!;
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Card(
             child: Padding(
@@ -177,7 +180,7 @@ class ProfileScreen extends StatelessWidget {
                     TextButton.icon(
                       onPressed: () => _showChangePasswordDialog(context),
                       icon: const Icon(Icons.lock_reset, color: Colors.white),
-                      label: const Text('Change Password', style: TextStyle(color: Colors.white)),
+                      label: Text(l10n.changePassword, style: const TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -192,25 +195,26 @@ class ProfileScreen extends StatelessWidget {
   Future<void> _showEditNameDialog(BuildContext context, String currentName) async {
     final nameController = TextEditingController(text: currentName);
     
+    final l10n = AppLocalizations.of(context)!;
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text('Edit Name', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.editName, style: const TextStyle(color: Colors.white)),
         content: TextField(
           controller: nameController,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Display Name',
-            labelStyle: TextStyle(color: Colors.grey),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
+          decoration: InputDecoration(
+            labelText: l10n.displayName,
+            labelStyle: const TextStyle(color: Colors.grey),
+            enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+            focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
@@ -228,7 +232,7 @@ class ProfileScreen extends StatelessWidget {
                     if (context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Name updated successfully')),
+                        SnackBar(content: Text(l10n.nameUpdatedSuccessfully)),
                       );
                     }
                   }
@@ -241,7 +245,7 @@ class ProfileScreen extends StatelessWidget {
                 }
               }
             },
-            child: const Text('Save', style: TextStyle(color: Color(0xFF00FF00))),
+            child: Text(l10n.save, style: const TextStyle(color: Color(0xFF00FF00))),
           ),
         ],
       ),
@@ -252,11 +256,12 @@ class ProfileScreen extends StatelessWidget {
     final passwordController = TextEditingController();
     final confirmController = TextEditingController();
     
+    final l10n = AppLocalizations.of(context)!;
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text('Change Password', style: TextStyle(color: Colors.white)),
+        title: Text(l10n.changePassword, style: const TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -264,11 +269,11 @@ class ProfileScreen extends StatelessWidget {
               controller: passwordController,
               obscureText: true,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'New Password',
-                labelStyle: TextStyle(color: Colors.grey),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
+              decoration: InputDecoration(
+                labelText: l10n.newPassword,
+                labelStyle: const TextStyle(color: Colors.grey),
+                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
               ),
             ),
             const SizedBox(height: 16),
@@ -276,11 +281,11 @@ class ProfileScreen extends StatelessWidget {
               controller: confirmController,
               obscureText: true,
               style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                labelStyle: TextStyle(color: Colors.grey),
-                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
+              decoration: InputDecoration(
+                labelText: l10n.confirmPassword,
+                labelStyle: const TextStyle(color: Colors.grey),
+                enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00FF00))),
               ),
             ),
           ],
@@ -288,19 +293,19 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               if (passwordController.text != confirmController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match'), backgroundColor: Colors.red),
+                  SnackBar(content: Text(l10n.passwordsDoNotMatch), backgroundColor: Colors.red),
                 );
                 return;
               }
               if (passwordController.text.length < 6) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password must be at least 6 characters'), backgroundColor: Colors.red),
+                  SnackBar(content: Text(l10n.passwordTooShort), backgroundColor: Colors.red),
                 );
                 return;
               }
@@ -312,7 +317,7 @@ class ProfileScreen extends StatelessWidget {
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Password updated successfully')),
+                      SnackBar(content: Text(l10n.passwordUpdatedSuccessfully)),
                     );
                   }
                 }
@@ -324,17 +329,18 @@ class ProfileScreen extends StatelessWidget {
                 }
               }
             },
-            child: const Text('Update', style: TextStyle(color: Color(0xFF00FF00))),
+            child: Text(l10n.update, style: const TextStyle(color: Color(0xFF00FF00))),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTripStatisticsCard(String uid) {
+  Widget _buildTripStatisticsCard(BuildContext context, String uid) {
     return FutureBuilder<Map<String, dynamic>>(
       future: FirestoreService().getTripStatistics(uid),
       builder: (context, snapshot) {
+        final l10n = AppLocalizations.of(context)!;
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Card(
             child: Padding(
@@ -361,9 +367,9 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Trip Statistics',
-                  style: TextStyle(
+                Text(
+                  l10n.tripStatistics,
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -374,17 +380,17 @@ class ProfileScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildStatItem(
-                      'Total Trips',
+                      l10n.totalTrips,
                       '${stats['totalTrips'] ?? 0}',
                       Icons.route,
                     ),
                     _buildStatItem(
-                      'Distance',
+                      l10n.distance,
                       '${(stats['totalDistance'] ?? 0.0).toStringAsFixed(1)} km',
                       Icons.straighten,
                     ),
                     _buildStatItem(
-                      'Max Speed',
+                      l10n.max,
                       '${(stats['maxSpeed'] ?? 0.0).toStringAsFixed(0)} km/h',
                       Icons.speed,
                     ),
@@ -423,13 +429,14 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentTrips(String uid) {
+  Widget _buildRecentTrips(BuildContext context, String uid) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Recent Trips',
-          style: TextStyle(
+        Text(
+          l10n.recentTrips,
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -448,13 +455,13 @@ class ProfileScreen extends StatelessWidget {
             }
 
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return const Card(
+              return Card(
                 child: Padding(
-                  padding: EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(32),
                   child: Center(
                     child: Text(
-                      'No trips yet. Start tracking!',
-                      style: TextStyle(color: Colors.white70),
+                      l10n.noTripsYet,
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ),
                 ),
@@ -536,24 +543,25 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<bool?> _showDeleteDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text('Delete Trip?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'This action cannot be undone.',
-          style: TextStyle(color: Colors.white70),
+        title: Text(l10n.deleteTrip, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          l10n.confirmDelete,
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),

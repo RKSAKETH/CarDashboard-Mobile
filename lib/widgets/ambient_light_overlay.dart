@@ -7,6 +7,7 @@ import '../services/ambient_light_service.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 final ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(true);
+final ValueNotifier<Locale> localeNotifier = ValueNotifier<Locale>(const Locale('en'));
 
 /// Holds the current [LightMode] and notifies descendants when it changes.
 /// Place this widget near the top of your widget tree so all children can

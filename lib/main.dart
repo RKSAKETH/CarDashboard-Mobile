@@ -8,6 +8,8 @@ import 'services/auth_service.dart';
 import 'services/incident_service.dart';
 import 'services/ambient_light_service.dart';
 import 'widgets/ambient_light_overlay.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,23 +60,29 @@ class SpeedometerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AmbientLightProvider(
-      child: Builder(
-        builder: (ctx) {
-          // AmbientLightProvider.of registers an InheritedWidget dependency —
-          // this Builder rebuilds automatically when LightMode changes.
-          final mode = AmbientLightProvider.of(ctx);
-          final isDark = isDarkModeNotifier.value;
-          return AnimatedTheme(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            data: _buildTheme(mode, isDark),
-            child: MaterialApp(
-              navigatorKey: incidentNavigatorKey,
-              title: 'Speedometer',
-              debugShowCheckedModeBanner: false,
-              theme: _buildTheme(mode, isDark),
-              home: const AuthWrapper(),
-            ),
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: localeNotifier,
+        builder: (ctx, locale, _) {
+          return Builder(
+            builder: (ctx) {
+              final mode = AmbientLightProvider.of(ctx);
+              final isDark = isDarkModeNotifier.value;
+              return AnimatedTheme(
+                duration: const Duration(milliseconds: 400),
+                curve: Curves.easeInOut,
+                data: _buildTheme(mode, isDark),
+                child: MaterialApp(
+                  navigatorKey: incidentNavigatorKey,
+                  title: 'Speedometer',
+                  debugShowCheckedModeBanner: false,
+                  theme: _buildTheme(mode, isDark),
+                  locale: locale,
+                  localizationsDelegates: AppLocalizations.localizationsDelegates,
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  home: const AuthWrapper(),
+                ),
+              );
+            },
           );
         },
       ),
