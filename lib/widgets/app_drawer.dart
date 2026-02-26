@@ -24,17 +24,25 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mode = AmbientLightProvider.of(context);
+    final bg = LightThemePalette.background(mode);
+    final surface = LightThemePalette.surface(mode);
+    final accent = LightThemePalette.accent(mode);
+    final textPri = LightThemePalette.textPrimary(mode);
+    final textSec = LightThemePalette.textSecondary(mode);
+    final isDark = isDarkModeNotifier.value;
+
     return Drawer(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: bg,
       child: SafeArea(
         child: Column(
           children: [
             // Header
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: Color(0xFF2A2A2A), width: 1),
+                  bottom: BorderSide(color: surface, width: 1),
                 ),
               ),
               child: Row(
@@ -43,23 +51,23 @@ class AppDrawer extends StatelessWidget {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00FF00),
+                      color: accent,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.speed,
-                      color: Colors.black,
+                      color: isDark ? Colors.black : Colors.white,
                       size: 32,
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Speedometer',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: textPri,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -67,7 +75,7 @@ class AppDrawer extends StatelessWidget {
                       Text(
                         'GPS Speed Tracker',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: textSec,
                           fontSize: 14,
                         ),
                       ),
@@ -108,6 +116,31 @@ class AppDrawer extends StatelessWidget {
                         ),
                       );
                     },
+                  ),
+
+                  // -- Dark Mode Toggle --
+                  ListTile(
+                    leading: Icon(
+                      isDark ? Icons.dark_mode : Icons.light_mode,
+                      color: isDark ? const Color(0xFF00FF00) : Colors.amber.shade700,
+                      size: 28,
+                    ),
+                    title: Text(
+                      'Dark Mode',
+                      style: TextStyle(
+                        color: textPri,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    trailing: Switch(
+                      value: isDark,
+                      activeColor: accent,
+                      onChanged: (val) {
+                        isDarkModeNotifier.value = val;
+                      },
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                   ),
 
                   _buildMenuItem(
@@ -228,16 +261,21 @@ class AppDrawer extends StatelessWidget {
     Color? iconColor,
     required VoidCallback onTap,
   }) {
+    final mode = AmbientLightProvider.of(context);
+    final accent = LightThemePalette.accent(mode);
+    final textPri = LightThemePalette.textPrimary(mode);
+    final textSec = LightThemePalette.textSecondary(mode);
+
     return ListTile(
       leading: Icon(
         icon,
-        color: iconColor ?? const Color(0xFF00FF00),
+        color: iconColor ?? accent,
         size: 28,
       ),
       title: Text(
         title,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: textPri,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
@@ -245,8 +283,8 @@ class AppDrawer extends StatelessWidget {
       subtitle: subtitle != null
           ? Text(
               subtitle,
-              style: const TextStyle(
-                color: Colors.white60,
+              style: TextStyle(
+                color: textSec,
                 fontSize: 12,
               ),
             )

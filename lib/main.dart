@@ -28,20 +28,20 @@ void main() async {
 class SpeedometerApp extends StatelessWidget {
   const SpeedometerApp({super.key});
 
-  ThemeData _buildTheme(LightMode mode) {
+  ThemeData _buildTheme(LightMode mode, bool isDark) {
     final accent  = LightThemePalette.accent(mode);
     final bg      = LightThemePalette.background(mode);
     final surface = LightThemePalette.surface(mode);
 
     return ThemeData(
-      brightness: Brightness.dark,
+      brightness: isDark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: bg,
       primaryColor: accent,
-      colorScheme: ColorScheme.dark(
+      colorScheme: (isDark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
         primary: accent,
         secondary: accent,
         surface: surface,
-        onPrimary: Colors.black,
+        onPrimary: isDark ? Colors.black : Colors.white,
         onSurface: LightThemePalette.textPrimary(mode),
       ),
       appBarTheme: AppBarTheme(
@@ -63,15 +63,16 @@ class SpeedometerApp extends StatelessWidget {
           // AmbientLightProvider.of registers an InheritedWidget dependency —
           // this Builder rebuilds automatically when LightMode changes.
           final mode = AmbientLightProvider.of(ctx);
+          final isDark = isDarkModeNotifier.value;
           return AnimatedTheme(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeInOut,
-            data: _buildTheme(mode),
+            data: _buildTheme(mode, isDark),
             child: MaterialApp(
               navigatorKey: incidentNavigatorKey,
               title: 'Speedometer',
               debugShowCheckedModeBanner: false,
-              theme: _buildTheme(mode),
+              theme: _buildTheme(mode, isDark),
               home: const AuthWrapper(),
             ),
           );
