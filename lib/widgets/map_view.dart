@@ -21,6 +21,13 @@ class MapView extends StatefulWidget {
   final double speed;
   final RouteInfo? activeRoute;
   final VoidCallback? onStopNavigation;
+  final int? speedLimit;
+  final bool isOverLimit;
+
+  /// True when the app is in Simulation mode – changes map behaviour:
+  /// • Replaces the OS blue-dot with a custom car marker
+  /// • Camera continuously follows the simulated position
+  final bool isSimulation;
 
   const MapView({
     super.key,
@@ -28,6 +35,9 @@ class MapView extends StatefulWidget {
     required this.speed,
     this.activeRoute,
     this.onStopNavigation,
+    this.speedLimit,
+    this.isOverLimit = false,
+    this.isSimulation = false,
   });
 
   @override
@@ -39,31 +49,48 @@ class _MapViewState extends State<MapView> {
   Set<Polyline> _polylines = {};
   Set<Marker> _markers = {};
 
-  // ─── Lifecycle ───
+  // Whether the user is panning the map manually (pause auto-follow)
+  bool _userPanning = false;
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void didUpdateWidget(MapView oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Route changed
-    if (widget.activeRoute != oldWidget.activeRoute) {
+    final posChanged = widget.currentPosition != oldWidget.currentPosition;
+    final routeChanged = widget.activeRoute != oldWidget.activeRoute;
+    final simChanged = widget.isSimulation != oldWidget.isSimulation;
+
+    // Rebuild overlays when route or sim-mode changes
+    if (routeChanged || simChanged) {
       _rebuildOverlays();
     }
 
-    // Camera follows user when navigating
-    if (widget.currentPosition != null &&
-        widget.currentPosition != oldWidget.currentPosition &&
-        widget.activeRoute == null) {
-      _animateToUser();
+    // Update car marker + follow camera on every position tick in sim mode
+    if (posChanged && widget.currentPosition != null) {
+      if (widget.isSimulation) {
+        // Always update car marker and camera during simulation
+        _updateSimMarker();
+        if (!_userPanning) {
+          _followSimPosition();
+        }
+      } else if (widget.activeRoute == null) {
+        // Dev mode, no active route → just pan to user
+        _animateToUser();
+      }
     }
   }
+
+  // ── Overlays ───────────────────────────────────────────────────────────────
 
   void _rebuildOverlays() {
     final route = widget.activeRoute;
     if (route == null) {
+      // Keep sim marker if still in sim mode
       setState(() {
         _polylines = {};
-        _markers = {};
+        _markers = widget.isSimulation ? _simMarkerSet() : {};
       });
       return;
     }
@@ -88,13 +115,79 @@ class _MapViewState extends State<MapView> {
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
     );
 
+    final baseMarkers = <Marker>{destMarker};
+    if (widget.isSimulation) baseMarkers.addAll(_simMarkerSet());
+
     setState(() {
       _polylines = {routePolyline};
-      _markers = {destMarker};
+      _markers = baseMarkers;
     });
 
-    // Fit camera to route
-    _fitBounds(route);
+    // In simulation mode start following immediately; otherwise fit bounds
+    if (widget.isSimulation) {
+      _followSimPosition();
+    } else {
+      _fitBounds(route);
+    }
+  }
+
+  /// Updates only the simulated-car marker without touching polylines/dest
+  void _updateSimMarker() {
+    final pos = widget.currentPosition;
+    if (pos == null) return;
+
+    // Replace the 'sim_car' marker in the current set
+    final updated = _markers.where((m) => m.markerId.value != 'sim_car').toSet();
+    updated.addAll(_simMarkerSet());
+    setState(() => _markers = updated);
+  }
+
+  /// Builds the custom car marker at the current simulated position
+  Set<Marker> _simMarkerSet() {
+    final pos = widget.currentPosition;
+    if (pos == null) return {};
+
+    return {
+      Marker(
+        markerId: const MarkerId('sim_car'),
+        position: LatLng(pos.latitude, pos.longitude),
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          widget.isOverLimit
+              ? BitmapDescriptor.hueRed
+              : BitmapDescriptor.hueAzure,
+        ),
+        flat: true, // lies flat on the map so rotation looks natural
+        rotation: pos.heading, // points in direction of travel
+        anchor: const Offset(0.5, 0.5),
+        zIndexInt: 2,
+        infoWindow: InfoWindow(
+          title: '🚗 ${widget.speed.toInt()} km/h',
+          snippet: widget.speedLimit != null
+              ? 'Limit: ${widget.speedLimit} km/h'
+              : null,
+        ),
+      ),
+    };
+  }
+
+  // ── Camera ─────────────────────────────────────────────────────────────────
+
+  /// Smoothly follows the simulated car, including bearing (heading)
+  void _followSimPosition() {
+    final pos = widget.currentPosition;
+    if (_mapController == null || pos == null) return;
+
+    _mapController!.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: LatLng(pos.latitude, pos.longitude),
+          zoom: 17.5,
+          // Rotate map so car always faces "up"
+          bearing: pos.heading,
+          tilt: 40, // slight 3-D tilt for driving feel
+        ),
+      ),
+    );
   }
 
   void _fitBounds(RouteInfo route) async {
@@ -112,7 +205,6 @@ class _MapViewState extends State<MapView> {
       if (p.longitude > maxLng) maxLng = p.longitude;
     }
 
-    // Include current position in bounds if available
     if (widget.currentPosition != null) {
       if (widget.currentPosition!.latitude < minLat) minLat = widget.currentPosition!.latitude;
       if (widget.currentPosition!.latitude > maxLat) maxLat = widget.currentPosition!.latitude;
@@ -135,32 +227,43 @@ class _MapViewState extends State<MapView> {
     if (_mapController == null || widget.currentPosition == null) return;
     _mapController!.animateCamera(
       CameraUpdate.newLatLng(
-        LatLng(widget.currentPosition!.latitude, widget.currentPosition!.longitude),
+        LatLng(widget.currentPosition!.latitude,
+            widget.currentPosition!.longitude),
       ),
     );
   }
 
-  // ─── Build ───
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     final position = widget.currentPosition;
 
     if (position == null) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_off, size: 64, color: Colors.white38),
-            SizedBox(height: 16),
-            Text(
-              'Waiting for GPS signal…',
-              style: TextStyle(color: Colors.white70, fontSize: 16),
+            Icon(
+              widget.isSimulation ? Icons.route : Icons.location_off,
+              size: 64,
+              color: Colors.white38,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
-              'Make sure location is enabled',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
+              widget.isSimulation
+                  ? 'Give a voice destination to start simulation…'
+                  : 'Waiting for GPS signal…',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.isSimulation
+                  ? 'Tap the mic and say "Navigate to [place]"'
+                  : 'Make sure location is enabled',
+              style: const TextStyle(color: Colors.white38, fontSize: 13),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -171,13 +274,14 @@ class _MapViewState extends State<MapView> {
 
     return Stack(
       children: [
-        // ─── Map ───
+        // ── Map ─────────────────────────────────────────────────────────────
         GoogleMap(
           initialCameraPosition: CameraPosition(
             target: currentLatLng,
             zoom: 17,
           ),
-          myLocationEnabled: true,
+          // Dev mode: use OS blue dot. Sim mode: use custom car marker instead.
+          myLocationEnabled: !widget.isSimulation,
           myLocationButtonEnabled: false,
           compassEnabled: true,
           mapType: MapType.normal,
@@ -186,13 +290,22 @@ class _MapViewState extends State<MapView> {
           markers: _markers,
           onMapCreated: (controller) {
             _mapController = controller;
-            if (widget.activeRoute != null) {
-              _rebuildOverlays();
+            _rebuildOverlays();
+            if (widget.isSimulation) {
+              _followSimPosition();
             }
+          },
+          // Detect when user starts panning (pause auto-follow)
+          onCameraMoveStarted: () => _userPanning = true,
+          onCameraIdle: () {
+            // Re-enable auto-follow after 3 seconds of idle
+            Future.delayed(const Duration(seconds: 3), () {
+              _userPanning = false;
+            });
           },
         ),
 
-        // ─── Route Info Banner ───
+        // ── Route Info Banner ─────────────────────────────────────────────
         if (widget.activeRoute != null)
           Positioned(
             top: 0,
@@ -201,32 +314,81 @@ class _MapViewState extends State<MapView> {
             child: _buildRouteBanner(widget.activeRoute!),
           ),
 
-        // ─── Coordinates Card ───
-        if (widget.activeRoute == null)
+        // ── Simulation status badge ───────────────────────────────────────
+        if (widget.isSimulation && widget.activeRoute != null)
+          Positioned(
+            top: widget.activeRoute != null ? 120 : 12,
+            right: 12,
+            child: _buildSimBadge(),
+          ),
+
+        // ── Coordinates Card (dev mode only) ─────────────────────────────
+        if (!widget.isSimulation && widget.activeRoute == null)
           Positioned(
             left: 12,
             bottom: 12,
             child: _buildCoordsCard(position),
           ),
 
-        // ─── Speed Circle ───
+        // ── Speed Circle ──────────────────────────────────────────────────
         Positioned(
           right: 12,
           bottom: 12,
           child: _buildSpeedCircle(),
         ),
 
-        // ─── My Location Button ───
+        // ── My Location / Re-center Button ────────────────────────────────
         Positioned(
           right: 12,
-          bottom: widget.activeRoute != null ? 110 : 100,
+          bottom: widget.speedLimit != null ? 136 : 120,
           child: _buildMyLocationButton(),
         ),
       ],
     );
   }
 
-  // ─── Route Banner ───
+  // ── Simulation badge ────────────────────────────────────────────────────────
+
+  Widget _buildSimBadge() {
+    final over = widget.isOverLimit;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: over
+            ? const Color(0xFFFF1744).withAlpha(30)
+            : const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: over ? const Color(0xFFFF1744) : const Color(0xFF00E5FF),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            over ? Icons.warning_amber_rounded : Icons.directions_car,
+            color: over ? const Color(0xFFFF1744) : const Color(0xFF00E5FF),
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            over
+                ? '⚠ ${widget.speed.toInt()} / ${widget.speedLimit} km/h'
+                : 'SIM  ${widget.speed.toInt()} km/h',
+            style: TextStyle(
+              color: over ? const Color(0xFFFF1744) : Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Route Banner ────────────────────────────────────────────────────────────
 
   Widget _buildRouteBanner(RouteInfo route) {
     return Container(
@@ -246,7 +408,11 @@ class _MapViewState extends State<MapView> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.navigation, color: Color(0xFF00E5FF), size: 22),
+          Icon(
+            widget.isSimulation ? Icons.directions_car : Icons.navigation,
+            color: const Color(0xFF00E5FF),
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -289,7 +455,7 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  // ─── Coords Card ───
+  // ── Coords Card ─────────────────────────────────────────────────────────────
 
   Widget _buildCoordsCard(Position position) {
     return Container(
@@ -305,65 +471,106 @@ class _MapViewState extends State<MapView> {
         children: [
           Text(
             position.latitude.toStringAsFixed(5),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-          const Text('Lat', style: TextStyle(fontSize: 10, color: Colors.white54)),
+          const Text('Lat',
+              style: TextStyle(fontSize: 10, color: Colors.white54)),
           const SizedBox(height: 4),
           Text(
             position.longitude.toStringAsFixed(5),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+                fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-          const Text('Lng', style: TextStyle(fontSize: 10, color: Colors.white54)),
+          const Text('Lng',
+              style: TextStyle(fontSize: 10, color: Colors.white54)),
         ],
       ),
     );
   }
 
-  // ─── Speed Circle ───
+  // ── Speed Circle ────────────────────────────────────────────────────────────
 
   Widget _buildSpeedCircle() {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: const Color(0xDD1A1A2E),
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF00FF88), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF00FF88).withAlpha(80),
-            blurRadius: 8,
+    final over = widget.isOverLimit;
+    final borderColor =
+        over ? const Color(0xFFFF1744) : const Color(0xFF00FF88);
+    final textColor = over ? const Color(0xFFFF1744) : Colors.white;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: const Color(0xDD1A1A2E),
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withAlpha(over ? 120 : 80),
+                blurRadius: over ? 14 : 8,
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.speed.toInt().toString(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.speed.toInt().toString(),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Text(
+                  'km/h',
+                  style: TextStyle(color: Colors.white54, fontSize: 9),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Limit badge below circle
+        if (widget.speedLimit != null) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: over
+                  ? const Color(0xFFFF1744).withAlpha(30)
+                  : const Color(0xDD1A1A2E),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: over ? const Color(0xFFFF1744) : Colors.white24),
+            ),
+            child: Text(
+              'Lim ${widget.speedLimit}',
+              style: TextStyle(
+                color: over ? const Color(0xFFFF1744) : Colors.white54,
+                fontSize: 10,
+                fontWeight: over ? FontWeight.bold : FontWeight.normal,
               ),
             ),
-            const Text(
-              'km/h',
-              style: TextStyle(color: Colors.white54, fontSize: 9),
-            ),
-          ],
-        ),
-      ),
+          ),
+        ],
+      ],
     );
   }
 
-  // ─── My Location Button ───
+  // ── My Location / Re-center button ──────────────────────────────────────────
 
   Widget _buildMyLocationButton() {
     return GestureDetector(
       onTap: () {
-        if (widget.activeRoute != null) {
+        _userPanning = false; // Re-enable auto-follow
+        if (widget.isSimulation) {
+          _followSimPosition();
+        } else if (widget.activeRoute != null) {
           _fitBounds(widget.activeRoute!);
         } else {
           _animateToUser();
@@ -377,8 +584,8 @@ class _MapViewState extends State<MapView> {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white24),
         ),
-        child: const Icon(
-          Icons.my_location,
+        child: Icon(
+          widget.isSimulation ? Icons.directions_car : Icons.my_location,
           color: Colors.white,
           size: 22,
         ),
@@ -386,7 +593,7 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  // ─── Dispose ───
+  // ── Dispose ─────────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
