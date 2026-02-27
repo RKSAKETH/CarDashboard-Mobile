@@ -697,14 +697,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   // Speed-limit red pulse wrapper
                   _buildSpeedWarningWrapper(_buildCurrentView()),
 
-                  // Mic Button
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    child: Center(child: _buildMicButton()),
-                  ),
-
                   // ── Simulation Speed Slider ────────────────────────────────
                   if (_isSimMode)
                     Positioned(
@@ -1276,44 +1268,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 12),
 
-          // START/STOP Button
-          GestureDetector(
-            onTap: _toggleTracking,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(50),
-                boxShadow: [
-                  BoxShadow(
-                    color: accent.withAlpha(80),
-                    blurRadius: 14,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isTracking ? l10n.stop : l10n.start,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+          // START/STOP Button and Mic Button
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: _toggleTracking,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withAlpha(80),
+                          blurRadius: 14,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _isTracking ? l10n.stop : l10n.start,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          _isTracking ? Icons.stop : Icons.play_arrow,
+                          color: Colors.black,
+                          size: 26,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    _isTracking ? Icons.stop : Icons.play_arrow,
-                    color: Colors.black,
-                    size: 26,
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              _buildMicButton(),
+            ],
           ),
         ],
       ),
