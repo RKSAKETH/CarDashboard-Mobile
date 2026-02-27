@@ -58,9 +58,11 @@ class _GaugeViewState extends State<GaugeView>
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
           // Speedometer gauge with optional red pulse
           AnimatedBuilder(
             animation: _scaleAnim,
@@ -88,8 +90,9 @@ class _GaugeViewState extends State<GaugeView>
           ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // ── Speed Limit Badge ─────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/intro_screen.dart';
 import 'services/auth_service.dart';
 import 'services/incident_service.dart';
 import 'services/ambient_light_service.dart';
@@ -79,7 +80,7 @@ class SpeedometerApp extends StatelessWidget {
                   locale: locale,
                   localizationsDelegates: AppLocalizations.localizationsDelegates,
                   supportedLocales: AppLocalizations.supportedLocales,
-                  home: const AuthWrapper(),
+                  home: const IntroScreen(),
                 ),
               );
             },
