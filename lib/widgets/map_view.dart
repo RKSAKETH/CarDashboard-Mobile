@@ -305,14 +305,6 @@ class _MapViewState extends State<MapView> {
           },
         ),
 
-        // ── Route Info Banner ─────────────────────────────────────────────
-        if (widget.activeRoute != null)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _buildRouteBanner(widget.activeRoute!),
-          ),
 
         // ── Coordinates Card (dev mode only) ─────────────────────────────
         if (!widget.isSimulation && widget.activeRoute == null)
@@ -325,72 +317,6 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  // ── Route Banner ────────────────────────────────────────────────────────────
-
-  Widget _buildRouteBanner(RouteInfo route) {
-    return Container(
-      margin: const EdgeInsets.all(12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00E5FF), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF00E5FF).withAlpha(60),
-            blurRadius: 12,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            widget.isSimulation ? Icons.directions_car : Icons.navigation,
-            color: const Color(0xFF00E5FF),
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  route.destination,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${route.distanceText}  ·  ${route.durationText}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: widget.onStopNavigation,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.red.withAlpha(40),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red, width: 1),
-              ),
-              child: const Icon(Icons.close, color: Colors.red, size: 18),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── Coords Card ─────────────────────────────────────────────────────────────
 

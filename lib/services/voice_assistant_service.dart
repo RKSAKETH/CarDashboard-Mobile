@@ -16,6 +16,7 @@ class RouteInfo {
   final List<LatLng> polylinePoints;
   final String distanceText;
   final String durationText;
+  final int durationSeconds;
 
   RouteInfo({
     required this.destination,
@@ -23,6 +24,7 @@ class RouteInfo {
     required this.polylinePoints,
     required this.distanceText,
     required this.durationText,
+    required this.durationSeconds,
   });
 }
 
@@ -347,6 +349,7 @@ class VoiceAssistantService {
       polylinePoints: points,
       distanceText: leg['distance']['text'] as String,
       durationText: leg['duration']['text'] as String,
+      durationSeconds: leg['duration']['value'] as int,
     );
   }
 
