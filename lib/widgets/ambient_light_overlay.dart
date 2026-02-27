@@ -22,8 +22,10 @@ class AmbientLightProvider extends StatefulWidget {
   final Widget child;
 
   /// Set to false to disable sensor listening (e.g. in tests or when user
-  /// has manually disabled the feature in Settings).
   final bool enabled;
+
+  /// Set to true to temporarily prevent the banner from showing.
+  static bool suppressBanner = false;
 
   /// Read the current [LightMode] from anywhere in the tree.
   static LightMode of(BuildContext context) {
@@ -87,7 +89,7 @@ class _AmbientLightProviderState extends State<AmbientLightProvider> {
     if (!mounted) return;
     setState(() {
       _mode = newMode;
-      _showBanner = true;
+      _showBanner = !AmbientLightProvider.suppressBanner;
     });
     _bannerTimer?.cancel();
     _bannerTimer = Timer(const Duration(seconds: 3), () {

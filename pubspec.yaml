@@ -30,6 +30,8 @@ dependencies:
   http: ^1.6.0
   sensors_plus: ^6.1.1
   light_sensor: ^3.0.0
+  get: ^4.7.3
+  video_player: ^2.11.0
 
 dev_dependencies:
   flutter_test:
@@ -39,3 +41,6 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+
+  assets:
+    - assets/videos/

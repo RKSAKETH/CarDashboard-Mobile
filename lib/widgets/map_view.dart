@@ -314,14 +314,6 @@ class _MapViewState extends State<MapView> {
             child: _buildRouteBanner(widget.activeRoute!),
           ),
 
-        // ── Simulation status badge ───────────────────────────────────────
-        if (widget.isSimulation && widget.activeRoute != null)
-          Positioned(
-            top: widget.activeRoute != null ? 120 : 12,
-            right: 12,
-            child: _buildSimBadge(),
-          ),
-
         // ── Coordinates Card (dev mode only) ─────────────────────────────
         if (!widget.isSimulation && widget.activeRoute == null)
           Positioned(
@@ -329,62 +321,7 @@ class _MapViewState extends State<MapView> {
             bottom: 12,
             child: _buildCoordsCard(position),
           ),
-
-        // ── Speed Circle ──────────────────────────────────────────────────
-        Positioned(
-          right: 12,
-          bottom: 12,
-          child: _buildSpeedCircle(),
-        ),
-
-        // ── My Location / Re-center Button ────────────────────────────────
-        Positioned(
-          right: 12,
-          bottom: widget.speedLimit != null ? 136 : 120,
-          child: _buildMyLocationButton(),
-        ),
       ],
-    );
-  }
-
-  // ── Simulation badge ────────────────────────────────────────────────────────
-
-  Widget _buildSimBadge() {
-    final over = widget.isOverLimit;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: over
-            ? const Color(0xFFFF1744).withAlpha(30)
-            : const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: over ? const Color(0xFFFF1744) : const Color(0xFF00E5FF),
-          width: 1.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            over ? Icons.warning_amber_rounded : Icons.directions_car,
-            color: over ? const Color(0xFFFF1744) : const Color(0xFF00E5FF),
-            size: 14,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            over
-                ? '⚠ ${widget.speed.toInt()} / ${widget.speedLimit} km/h'
-                : 'SIM  ${widget.speed.toInt()} km/h',
-            style: TextStyle(
-              color: over ? const Color(0xFFFF1744) : Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -485,110 +422,6 @@ class _MapViewState extends State<MapView> {
           const Text('Lng',
               style: TextStyle(fontSize: 10, color: Colors.white54)),
         ],
-      ),
-    );
-  }
-
-  // ── Speed Circle ────────────────────────────────────────────────────────────
-
-  Widget _buildSpeedCircle() {
-    final over = widget.isOverLimit;
-    final borderColor =
-        over ? const Color(0xFFFF1744) : const Color(0xFF00FF88);
-    final textColor = over ? const Color(0xFFFF1744) : Colors.white;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: const Color(0xDD1A1A2E),
-            shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: borderColor.withAlpha(over ? 120 : 80),
-                blurRadius: over ? 14 : 8,
-              ),
-            ],
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  widget.speed.toInt().toString(),
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'km/h',
-                  style: TextStyle(color: Colors.white54, fontSize: 9),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Limit badge below circle
-        if (widget.speedLimit != null) ...[
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: over
-                  ? const Color(0xFFFF1744).withAlpha(30)
-                  : const Color(0xDD1A1A2E),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: over ? const Color(0xFFFF1744) : Colors.white24),
-            ),
-            child: Text(
-              'Lim ${widget.speedLimit}',
-              style: TextStyle(
-                color: over ? const Color(0xFFFF1744) : Colors.white54,
-                fontSize: 10,
-                fontWeight: over ? FontWeight.bold : FontWeight.normal,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  // ── My Location / Re-center button ──────────────────────────────────────────
-
-  Widget _buildMyLocationButton() {
-    return GestureDetector(
-      onTap: () {
-        _userPanning = false; // Re-enable auto-follow
-        if (widget.isSimulation) {
-          _followSimPosition();
-        } else if (widget.activeRoute != null) {
-          _fitBounds(widget.activeRoute!);
-        } else {
-          _animateToUser();
-        }
-      },
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: const Color(0xDD1A1A2E),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Icon(
-          widget.isSimulation ? Icons.directions_car : Icons.my_location,
-          color: Colors.white,
-          size: 22,
-        ),
       ),
     );
   }

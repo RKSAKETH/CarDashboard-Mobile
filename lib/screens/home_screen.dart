@@ -1148,122 +1148,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         children: [
-          // Odometer + Vehicle
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _totalDistance
-                    .toStringAsFixed(3)
-                    .replaceAll('.', '')
-                    .padLeft(6, '0'),
-                style: TextStyle(
-                  color: textSec,
-                  fontSize: 24,
-                  fontFamily: 'monospace',
-                  letterSpacing: 4,
-                ),
-              ),
-              Text('km', style: TextStyle(color: textSec, fontSize: 16)),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 400),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accent.withAlpha(60)),
-                ),
-                child: DropdownButton<VehicleType>(
-                  value: _vehicleType,
-                  dropdownColor: surface,
-                  underline: const SizedBox(),
-                  icon: Icon(Icons.arrow_drop_down, color: textPri),
-                  items: [
-                    DropdownMenuItem(
-                      value: VehicleType.motorcycle,
-                      child: Row(children: [
-                        Icon(Icons.motorcycle, color: textPri, size: 20),
-                        const SizedBox(width: 8),
-                      ]),
-                    ),
-                    DropdownMenuItem(
-                      value: VehicleType.car,
-                      child: Row(children: [
-                        Icon(Icons.directions_car, color: textPri, size: 20),
-                        const SizedBox(width: 8),
-                      ]),
-                    ),
-                    DropdownMenuItem(
-                      value: VehicleType.bicycle,
-                      child: Row(children: [
-                        Icon(Icons.directions_bike, color: textPri, size: 20),
-                        const SizedBox(width: 8),
-                      ]),
-                    ),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) setState(() => _vehicleType = v);
-                  },
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Timer
+          // Consolidated Timer & Stats Bar
           AnimatedContainer(
             duration: const Duration(milliseconds: 400),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             decoration: BoxDecoration(
               color: surface,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: accent.withAlpha(40)),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Icon(Icons.map, color: accent, size: 20),
-                const SizedBox(width: 16),
-                Text(
-                  _formatDuration(_elapsed),
-                  style: TextStyle(
-                    color: textPri,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(Icons.photo_library, color: accent, size: 20),
+                Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
+                Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                Expanded(flex: 2, child: _buildCompactStat(Icons.route, '${_totalDistance.toStringAsFixed(0)}', l10n.distance, accent, textPri, textSec)),
+                Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                Expanded(flex: 2, child: _buildCompactStat(Icons.speed, '${_avgSpeed.toStringAsFixed(0)}', l10n.avg, accent, textPri, textSec)),
+                Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                Expanded(flex: 2, child: _buildCompactStat(Icons.bolt, '${_maxSpeed.toStringAsFixed(0)}', l10n.max, accent, textPri, textSec)),
               ],
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Stats Cards
-          Row(
-            children: [
-              Expanded(child: _buildStatCard(
-                l10n.distance,
-                '${_totalDistance.toStringAsFixed(0)} km',
-                accent, surface, textPri, textSec,
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(
-                l10n.avg,
-                '${_avgSpeed.toStringAsFixed(0)} km/h',
-                accent, surface, textPri, textSec,
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: _buildStatCard(
-                l10n.max,
-                '${_maxSpeed.toStringAsFixed(0)} km/h',
-                accent, surface, textPri, textSec,
-              )),
-            ],
           ),
 
           const SizedBox(height: 12),
@@ -1372,36 +1277,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ║  Helpers                                                                 ║
   // ╚══════════════════════════════════════════════════════════════════════════╝
 
-  Widget _buildStatCard(
-    String label,
+  Widget _buildCompactStat(
+    IconData icon,
     String value,
+    String label,
     Color accent,
-    Color surface,
     Color textPri,
     Color textSec,
   ) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withAlpha(40)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: textPri,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: accent, size: 14),
+              const SizedBox(width: 4),
+              Text(
+                value,
+                style: TextStyle(
+                  color: textPri,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: textSec, fontSize: 11)),
-        ],
-      ),
+        ),
+        if (label.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(color: textSec, fontSize: 10)),
+        ]
+      ],
     );
   }
 
