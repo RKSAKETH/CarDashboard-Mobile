@@ -219,6 +219,52 @@ class VoiceAssistantService {
 
   // ─── Navigation ───
 
+  /// Public entry-point so the search UI can trigger navigation directly.
+  Future<void> navigateTo(String place) => _startNavigation(place);
+
+  /// Fetches autocomplete place suggestions from the Google Places API.
+  /// Returns a list of maps with 'description' and 'placeId' keys.
+  Future<List<Map<String, String>>> fetchPlaceSuggestions(
+      String input, {
+      double? latitude,
+      double? longitude,
+  }) async {
+    if (input.trim().isEmpty) return [];
+    try {
+      final params = <String, String>{
+        'input': input,
+        'key': _apiKey,
+        'types': 'geocode|establishment',
+      };
+      if (latitude != null && longitude != null) {
+        params['location'] = '$latitude,$longitude';
+        params['radius'] = '50000'; // 50 km bias
+      }
+      final uri = Uri.https(
+        'maps.googleapis.com',
+        '/maps/api/place/autocomplete/json',
+        params,
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      if (data['status'] != 'OK' && data['status'] != 'ZERO_RESULTS') {
+        debugPrint('[Places] Autocomplete error: ${data['status']}');
+        return [];
+      }
+      final predictions = data['predictions'] as List<dynamic>? ?? [];
+      return predictions.map((p) {
+        final map = p as Map<String, dynamic>;
+        return {
+          'description': map['description'] as String? ?? '',
+          'placeId': map['place_id'] as String? ?? '',
+        };
+      }).toList();
+    } catch (e) {
+      debugPrint('[Places] Autocomplete exception: $e');
+      return [];
+    }
+  }
+
   Future<void> _startNavigation(String place) async {
     onPageChange?.call(2); // Switch to map
     await speak('Searching for $place. Please wait…');

@@ -84,6 +84,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── Simulation ongoing flag ───────────────────────────────────────────────
   bool _simRunning = false;
 
+  // ── Place Search ──────────────────────────────────────────────────────────
+  bool _showSearch = false;
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, String>> _placeSuggestions = [];
+  bool _searchLoading = false;
+  Timer? _searchDebounce;
+
   // ── Mic pulse animation ───────────────────────────────────────────────────
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
@@ -212,6 +219,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _timer?.cancel();
     _speedLimitTimer?.cancel();
     _warningRepeatTimer?.cancel();
+    _searchDebounce?.cancel();
+    _searchController.dispose();
     _pulseController.dispose();
     _pulseRedController.dispose();
     _voice.dispose();
@@ -481,6 +490,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
+  /// Smart handler for the main START/STOP button.
+  /// – Sim mode + active route: starts/stops the navigation journey.
+  /// – Otherwise: toggles the session tracking timer as usual.
+  void _onStartStopPressed() {
+    if (_isSimMode && _activeRoute != null) {
+      if (_simRunning) {
+        // Stop the journey
+        _stopSimulation();
+        _stopTimer();
+        setState(() => _isTracking = false);
+        _saveSession();
+      } else {
+        // Start the journey
+        _resetCurrentSession();
+        _startTimer();
+        setState(() => _isTracking = true);
+        _startSimulation(_activeRoute!);
+      }
+    } else {
+      _toggleTracking();
+    }
+  }
+
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
@@ -545,6 +577,259 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() => _activeRoute = null);
     if (_isSimMode) _stopSimulation();
     _voice.speak('Navigation stopped.');
+  }
+
+  // ╔══════════════════════════════════════════════════════════════════════════╗
+  // ║  Place Search                                                            ║
+  // ╚══════════════════════════════════════════════════════════════════════════╝
+
+  void _onSearchChanged(String query) {
+    _searchDebounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() => _placeSuggestions = []);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 400), () async {
+      if (!mounted) return;
+      setState(() => _searchLoading = true);
+      final results = await _voice.fetchPlaceSuggestions(
+        query,
+        latitude: _currentPosition?.latitude,
+        longitude: _currentPosition?.longitude,
+      );
+      if (mounted) setState(() { _placeSuggestions = results; _searchLoading = false; });
+    });
+  }
+
+  void _selectSuggestion(String description) {
+    _searchController.clear();
+    setState(() {
+      _showSearch = false;
+      _placeSuggestions = [];
+    });
+    _voice.navigateTo(description);
+  }
+
+  void _closeSearch() {
+    _searchController.clear();
+    setState(() { _showSearch = false; _placeSuggestions = []; });
+  }
+
+  Widget _buildSearchOverlay() {
+    final lightMode = AmbientLightProvider.of(context);
+    final accent  = LightThemePalette.accent(lightMode);
+    final textPri = LightThemePalette.textPrimary(lightMode);
+    final textSec = LightThemePalette.textSecondary(lightMode);
+
+    return Stack(
+      children: [
+        // ── Search button (shown when search closed + no active route) ────────
+        if (!_showSearch && _activeRoute == null)
+          Positioned(
+            top: 12,
+            right: 12,
+            child: GestureDetector(
+              onTap: () => setState(() => _showSearch = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xEE1A1A2E),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: accent.withAlpha(120), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withAlpha(50),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search_rounded, color: accent, size: 20),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Search destination',
+                      style: TextStyle(color: textSec, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        // ── Search panel (shown when _showSearch is true) ────────────────────
+        if (_showSearch)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                decoration: BoxDecoration(
+                  color: const Color(0xF51A1A2E),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: accent.withAlpha(120), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withAlpha(60),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Text field row ──────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 8, 6),
+                      child: Row(
+                        children: [
+                          Icon(Icons.search_rounded, color: accent, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              autofocus: true,
+                              onChanged: _onSearchChanged,
+                              style: TextStyle(color: textPri, fontSize: 15),
+                              cursorColor: accent,
+                              decoration: InputDecoration(
+                                hintText: 'Where do you want to go?',
+                                hintStyle: TextStyle(color: textSec, fontSize: 14),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                          if (_searchLoading)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: accent,
+                                ),
+                              ),
+                            ),
+                          IconButton(
+                            onPressed: _closeSearch,
+                            icon: Icon(Icons.close_rounded, color: textSec, size: 20),
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Suggestions list ────────────────────────────────────
+                    if (_placeSuggestions.isNotEmpty) ...[
+                      Divider(height: 1, color: accent.withAlpha(40)),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 240),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          itemCount: _placeSuggestions.length,
+                          separatorBuilder: (_, __) =>
+                              Divider(height: 1, indent: 46, color: accent.withAlpha(20)),
+                          itemBuilder: (context, i) {
+                            final s = _placeSuggestions[i];
+                            final desc = s['description'] ?? '';
+                            // Split into main / secondary parts
+                            final parts = desc.split(',');
+                            final main = parts.first.trim();
+                            final secondary = parts.length > 1
+                                ? parts.sublist(1).join(',').trim()
+                                : '';
+                            return InkWell(
+                              onTap: () => _selectSuggestion(desc),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: accent.withAlpha(25),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.place_rounded,
+                                        color: accent,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            main,
+                                            style: TextStyle(
+                                              color: textPri,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (secondary.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              secondary,
+                                              style: TextStyle(
+                                                  color: textSec, fontSize: 11),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.north_west_rounded,
+                                      color: textSec,
+                                      size: 14,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ] else if (!_searchLoading &&
+                        _searchController.text.trim().isNotEmpty) ...[
+                      Divider(height: 1, color: accent.withAlpha(40)),
+                      Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Text(
+                          'No results found. Try a different query.',
+                          style: TextStyle(color: textSec, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   // ╔══════════════════════════════════════════════════════════════════════════╗
@@ -784,45 +1069,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           const Spacer(),
 
-          // Simulation running indicator
-          if (_isSimMode && _activeRoute != null)
-            _simRunning
-                ? Row(children: [
-                    const Icon(Icons.directions_car,
-                        size: 14, color: Color(0xFF00FF88)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${_simSpeedKmh.toInt()} km/h',
-                      style: const TextStyle(
-                          color: Color(0xFF00FF88),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ])
-                : GestureDetector(
-                    onTap: () => _startSimulation(_activeRoute!),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: accent.withAlpha(30),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: accent),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.play_arrow, color: accent, size: 14),
-                          const SizedBox(width: 4),
-                          Text(l10n.startSim,
-                              style: TextStyle(
-                                  color: accent,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ),
+          // Live speed indicator (shown only while simulation is running)
+          if (_isSimMode && _simRunning)
+            Row(children: [
+              const Icon(Icons.directions_car,
+                  size: 14, color: Color(0xFF00FF88)),
+              const SizedBox(width: 4),
+              Text(
+                '${_simSpeedKmh.toInt()} km/h',
+                style: const TextStyle(
+                    color: Color(0xFF00FF88),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold),
+              ),
+            ]),
         ],
       ),
     );
@@ -1111,14 +1371,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           speedLimit: _speedLimit,
         );
       case 2:
-        return MapView(
-          currentPosition: _currentPosition,
-          speed: _currentSpeed,
-          activeRoute: _activeRoute,
-          onStopNavigation: _stopNavigation,
-          speedLimit: _speedLimit,
-          isOverLimit: _isOverLimit,
-          isSimulation: _isSimMode,
+        return Stack(
+          children: [
+            MapView(
+              currentPosition: _currentPosition,
+              speed: _currentSpeed,
+              activeRoute: _activeRoute,
+              onStopNavigation: _stopNavigation,
+              speedLimit: _speedLimit,
+              isOverLimit: _isOverLimit,
+              isSimulation: _isSimMode,
+            ),
+            _buildSearchOverlay(),
+          ],
         );
       default:
         return const SizedBox();
@@ -1157,18 +1422,57 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: accent.withAlpha(40)),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
-                Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                Expanded(flex: 2, child: _buildCompactStat(Icons.route, '${_totalDistance.toStringAsFixed(0)}', l10n.distance, accent, textPri, textSec)),
-                Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                Expanded(flex: 2, child: _buildCompactStat(Icons.speed, '${_avgSpeed.toStringAsFixed(0)}', l10n.avg, accent, textPri, textSec)),
-                Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                Expanded(flex: 2, child: _buildCompactStat(Icons.bolt, '${_maxSpeed.toStringAsFixed(0)}', l10n.max, accent, textPri, textSec)),
-              ],
-            ),
+            child: _activeRoute != null
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(flex: 2, child: _buildCompactStat(Icons.access_time_filled, _activeRoute!.durationText, 'ETA', const Color(0xFF00E5FF), textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(flex: 2, child: _buildCompactStat(Icons.route, _activeRoute!.distanceText, l10n.distance, const Color(0xFF00E5FF), textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.flag_rounded, color: Color(0xFF00E5FF), size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _activeRoute!.destination,
+                                    style: TextStyle(color: textPri, fontSize: 12, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text('Dest', style: TextStyle(color: textSec, fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(flex: 2, child: _buildCompactStat(Icons.route, '${_totalDistance.toStringAsFixed(0)}', l10n.distance, accent, textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(flex: 2, child: _buildCompactStat(Icons.speed, '${_avgSpeed.toStringAsFixed(0)}', l10n.avg, accent, textPri, textSec)),
+                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                      Expanded(flex: 2, child: _buildCompactStat(Icons.bolt, '${_maxSpeed.toStringAsFixed(0)}', l10n.max, accent, textPri, textSec)),
+                    ],
+                  ),
           ),
 
           const SizedBox(height: 12),
@@ -1178,17 +1482,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: _toggleTracking,
+                  onTap: _onStartStopPressed,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 400),
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: accent,
+                      // Red when journey is running, green when route ready to go, yellow otherwise
+                      color: (_isSimMode && _activeRoute != null)
+                          ? (_simRunning
+                              ? const Color(0xFFFF1744)
+                              : const Color(0xFF00C853))
+                          : (_isTracking ? const Color(0xFFFF1744) : accent),
                       borderRadius: BorderRadius.circular(50),
                       boxShadow: [
                         BoxShadow(
-                          color: accent.withAlpha(80),
+                          color: ((_isSimMode && _activeRoute != null)
+                                  ? (_simRunning
+                                      ? const Color(0xFFFF1744)
+                                      : const Color(0xFF00C853))
+                                  : (_isTracking
+                                      ? const Color(0xFFFF1744)
+                                      : accent))
+                              .withAlpha(80),
                           blurRadius: 14,
                           spreadRadius: 2,
                         ),
@@ -1198,17 +1514,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _isTracking ? l10n.stop : l10n.start,
+                          // Contextual label
+                          (_isSimMode && _activeRoute != null)
+                              ? (_simRunning ? l10n.stop : 'START JOURNEY')
+                              : (_isTracking ? l10n.stop : l10n.start),
                           style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 22,
+                            color: Colors.white,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Icon(
-                          _isTracking ? Icons.stop : Icons.play_arrow,
-                          color: Colors.black,
+                          (_isSimMode && _activeRoute != null)
+                              ? (_simRunning
+                                  ? Icons.stop_rounded
+                                  : Icons.navigation_rounded)
+                              : (_isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                          color: Colors.white,
                           size: 26,
                         ),
                       ],
