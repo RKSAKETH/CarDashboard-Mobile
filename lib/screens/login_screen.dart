@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     
     if (!_isLogin && !_agreedToTerms) {
-      _showError('Please agree to the Terms & Conditions');
+      _showError(AppLocalizations.of(context)!.pleaseAgreeTerms);
       return;
     }
 
@@ -83,6 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
@@ -136,32 +138,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (!_isLogin) ...[
-                      _buildLabel('Username'),
+                      _buildLabel(l10n.username),
                       _buildTextField(
                         controller: _usernameController,
-                        hintText: 'Create a username',
+                        hintText: l10n.createUsername,
                         icon: Icons.person_outline,
                         validator: (value) => 
-                          value!.isEmpty ? 'Please enter a username' : null,
+                          value!.isEmpty ? l10n.enterUsername : null,
                       ),
                       const SizedBox(height: 16),
                     ],
                     
-                    _buildLabel('Email address'),
+                    _buildLabel(l10n.emailAddress),
                     _buildTextField(
                       controller: _emailController,
-                      hintText: 'davidjonson@gmail.com',
+                      hintText: 'user@example.com',
                       icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter your email';
-                        if (!value.contains('@')) return 'Please enter a valid email';
+                        if (value == null || value.isEmpty) return l10n.enterEmail;
+                        if (!value.contains('@')) return l10n.enterValidEmail;
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     
-                    _buildLabel('Password'),
+                    _buildLabel(l10n.password),
                     _buildTextField(
                       controller: _passwordController,
                       hintText: '••••••••',
@@ -170,24 +172,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       isPassword: true,
                       onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter a password';
-                        if (value.length < 6) return 'Min 6 characters';
+                        if (value == null || value.isEmpty) return l10n.enterPassword;
+                        if (value.length < 6) return l10n.passwordTooShort;
                         return null;
                       },
                     ),
                     
                     if (!_isLogin) ...[
                       const SizedBox(height: 16),
-                      _buildLabel('Confirm Password'),
+                      _buildLabel(l10n.confirmPassword),
                       _buildTextField(
                         controller: _confirmPasswordController,
-                        hintText: 'Re-enter password',
+                        hintText: '••••••••',
                         icon: Icons.lock_outline,
                         obscureText: _obscurePassword,
                         isPassword: true,
                         onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
                         validator: (value) {
-                          if (value != _passwordController.text) return 'Passwords do not match';
+                          if (value != _passwordController.text) return l10n.passwordsDoNotMatch;
                           return null;
                         },
                       ),
@@ -209,10 +211,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
-                              'I agree all Terms & Conditions and Privacy Policy',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                              l10n.agreeTerms,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
                             ),
                           ),
                         ],
@@ -242,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         elevation: 0,
                       ),
                       child: Text(
-                        _isLogin ? 'Login' : 'Sign Up',
+                        _isLogin ? l10n.login : l10n.signUp,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -258,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'or continue with',
+                            l10n.orContinueWith,
                             style: TextStyle(color: Colors.grey.withOpacity(0.5), fontSize: 12),
                           ),
                         ),
@@ -272,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                          _buildSocialButton(
-                          label: 'Google',
+                          label: l10n.google,
                           iconUrl: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                           onPressed: _handleGoogleSignIn,
                         ),
@@ -298,9 +300,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     text: TextSpan(
                       style: const TextStyle(color: Colors.grey, fontSize: 14),
                       children: [
-                        TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
+                        TextSpan(text: _isLogin ? "${l10n.dontHaveAccount} " : "${l10n.alreadyHaveAccount} "),
                         TextSpan(
-                          text: _isLogin ? "Sign Up" : "Login",
+                          text: _isLogin ? l10n.signUp : l10n.login,
                           style: const TextStyle(
                             color: Color(0xFF00FF00),
                             fontWeight: FontWeight.bold,

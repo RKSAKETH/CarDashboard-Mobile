@@ -6,6 +6,9 @@ import '../services/ambient_light_service.dart';
 // AmbientLightProvider  (InheritedNotifier-style state holder)
 // ─────────────────────────────────────────────────────────────────────────────
 
+final ValueNotifier<bool> isDarkModeNotifier = ValueNotifier<bool>(true);
+final ValueNotifier<Locale> localeNotifier = ValueNotifier<Locale>(const Locale('en'));
+
 /// Holds the current [LightMode] and notifies descendants when it changes.
 /// Place this widget near the top of your widget tree so all children can
 /// call [AmbientLightProvider.of(context)] to read the active mode.
@@ -48,11 +51,16 @@ class _AmbientLightProviderState extends State<AmbientLightProvider> {
   @override
   void initState() {
     super.initState();
+    isDarkModeNotifier.addListener(_onThemeToggle);
     if (widget.enabled) {
       _mode = AmbientLightService.instance.currentMode;
       AmbientLightService.instance.onModeChanged = _onModeChanged;
       AmbientLightService.instance.start();
     }
+  }
+
+  void _onThemeToggle() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -68,6 +76,7 @@ class _AmbientLightProviderState extends State<AmbientLightProvider> {
 
   @override
   void dispose() {
+    isDarkModeNotifier.removeListener(_onThemeToggle);
     AmbientLightService.instance.onModeChanged = null;
     AmbientLightService.instance.stop();
     _bannerTimer?.cancel();
@@ -90,6 +99,7 @@ class _AmbientLightProviderState extends State<AmbientLightProvider> {
   Widget build(BuildContext context) {
     return _AmbientLightScope(
       mode: _mode,
+      isDark: isDarkModeNotifier.value,
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Stack(
@@ -116,12 +126,13 @@ class _AmbientLightProviderState extends State<AmbientLightProvider> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AmbientLightScope extends InheritedWidget {
-  const _AmbientLightScope({required this.mode, required super.child});
+  const _AmbientLightScope({required this.mode, required this.isDark, required super.child});
 
   final LightMode mode;
+  final bool isDark;
 
   @override
-  bool updateShouldNotify(_AmbientLightScope old) => mode != old.mode;
+  bool updateShouldNotify(_AmbientLightScope old) => mode != old.mode || isDark != old.isDark;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -316,39 +327,54 @@ class LightThemePalette {
   const LightThemePalette._();
 
   // ── Accent (primary indicator colour) ──
-  static Color accent(LightMode mode) => switch (mode) {
-        LightMode.day      => const Color(0xFF00FF00), // neon green
-        LightMode.twilight => const Color(0xFFFFBF00), // amber
-        LightMode.night    => const Color(0xFFFF2400), // aviation red
-      };
+  static Color accent(LightMode mode) {
+    if (!isDarkModeNotifier.value) return const Color(0xFF00C853);
+    return switch (mode) {
+      LightMode.day      => const Color(0xFF00FF00), // neon green
+      LightMode.twilight => const Color(0xFFFFBF00), // amber
+      LightMode.night    => const Color(0xFFFF2400), // aviation red
+    };
+  }
 
   // ── Background ──
-  static Color background(LightMode mode) => switch (mode) {
-        LightMode.day      => const Color(0xFF1A1A1A),
-        LightMode.twilight => const Color(0xFF12100E),
-        LightMode.night    => const Color(0xFF0D0000),
-      };
+  static Color background(LightMode mode) {
+    if (!isDarkModeNotifier.value) return const Color(0xFFF5F5F5);
+    return switch (mode) {
+      LightMode.day      => const Color(0xFF1A1A1A),
+      LightMode.twilight => const Color(0xFF12100E),
+      LightMode.night    => const Color(0xFF0D0000),
+    };
+  }
 
   // ── Surface (card / panel) ──
-  static Color surface(LightMode mode) => switch (mode) {
-        LightMode.day      => const Color(0xFF2A2A2A),
-        LightMode.twilight => const Color(0xFF1E1A14),
-        LightMode.night    => const Color(0xFF1A0606),
-      };
+  static Color surface(LightMode mode) {
+    if (!isDarkModeNotifier.value) return Colors.white;
+    return switch (mode) {
+      LightMode.day      => const Color(0xFF2A2A2A),
+      LightMode.twilight => const Color(0xFF1E1A14),
+      LightMode.night    => const Color(0xFF1A0606),
+    };
+  }
 
   // ── Primary text ──
-  static Color textPrimary(LightMode mode) => switch (mode) {
-        LightMode.day      => Colors.white,
-        LightMode.twilight => const Color(0xFFFFECCC),
-        LightMode.night    => const Color(0xFFFF8080),
-      };
+  static Color textPrimary(LightMode mode) {
+    if (!isDarkModeNotifier.value) return Colors.black87;
+    return switch (mode) {
+      LightMode.day      => Colors.white,
+      LightMode.twilight => const Color(0xFFFFECCC),
+      LightMode.night    => const Color(0xFFFF8080),
+    };
+  }
 
   // ── Secondary text ──
-  static Color textSecondary(LightMode mode) => switch (mode) {
-        LightMode.day      => Colors.white70,
-        LightMode.twilight => const Color(0xFFCCAA88).withAlpha(180),
-        LightMode.night    => const Color(0xFFFF6060).withAlpha(180),
-      };
+  static Color textSecondary(LightMode mode) {
+    if (!isDarkModeNotifier.value) return Colors.black54;
+    return switch (mode) {
+      LightMode.day      => Colors.white70,
+      LightMode.twilight => const Color(0xFFCCAA88).withAlpha(180),
+      LightMode.night    => const Color(0xFFFF6060).withAlpha(180),
+    };
+  }
 
   // ── Screen brightness target (0.0 – 1.0) ──
   static double screenBrightness(LightMode mode) => switch (mode) {

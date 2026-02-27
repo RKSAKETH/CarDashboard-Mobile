@@ -7,6 +7,7 @@ import '../widgets/digital_view.dart';
 import '../widgets/map_view.dart';
 import '../widgets/app_drawer.dart' show AppDrawer, SettingsScreen;
 import '../widgets/ambient_light_overlay.dart';
+import '../l10n/app_localizations.dart';
 import '../models/speed_data.dart';
 import '../services/location_service.dart';
 import '../services/history_service.dart';
@@ -552,6 +553,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isListening = _voice.isListening;
     final lightMode = AmbientLightProvider.of(context);
     final accent = LightThemePalette.accent(lightMode);
@@ -581,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   Text(
-                    'Speedometer',
+                    l10n.appTitle,
                     style: TextStyle(
                       color: textPri,
                       fontSize: 20,
@@ -729,10 +731,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(Icons.speed, 'Gauge', 0, accent, textSec),
+                  _buildNavItem(Icons.speed, l10n.gauge, 0, accent, textSec),
                   _buildNavItem(
-                      Icons.filter_9_plus, 'Digital', 1, accent, textSec),
-                  _buildNavItem(Icons.map, 'Map', 2, accent, textSec),
+                      Icons.filter_9_plus, l10n.digital, 1, accent, textSec),
+                  _buildNavItem(Icons.map, l10n.map, 2, accent, textSec),
                 ],
               ),
             ),
@@ -753,6 +755,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Color textPri,
     Color textSec,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       color: bg,
@@ -762,7 +765,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // Label
           Icon(Icons.settings_suggest, size: 16, color: textSec),
           const SizedBox(width: 6),
-          Text('Mode:', style: TextStyle(color: textSec, fontSize: 12)),
+          Text('${l10n.mode}:', style: TextStyle(color: textSec, fontSize: 12)),
           const SizedBox(width: 8),
 
           // Toggle pill
@@ -776,11 +779,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _modeChip(
-                  'Dev', Icons.developer_mode,
+                  l10n.dev, Icons.developer_mode,
                   AppMode.dev, accent, textSec,
                 ),
                 _modeChip(
-                  'Simulation', Icons.play_circle_fill,
+                  l10n.simulation, Icons.play_circle_fill,
                   AppMode.simulation, accent, textSec,
                 ),
               ],
@@ -819,7 +822,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           Icon(Icons.play_arrow, color: accent, size: 14),
                           const SizedBox(width: 4),
-                          Text('Start Sim',
+                          Text(l10n.startSim,
                               style: TextStyle(
                                   color: accent,
                                   fontSize: 11,
@@ -997,6 +1000,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSimSpeedSlider(
       Color accent, Color textPri, Color textSec) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding:
@@ -1020,7 +1024,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               const Icon(Icons.speed, color: Colors.white70, size: 16),
               const SizedBox(width: 6),
               Text(
-                'Sim Speed',
+                '${l10n.simulation} ${l10n.gauge}',
                 style: TextStyle(color: textSec, fontSize: 12),
               ),
               const Spacer(),
@@ -1145,6 +1149,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     Color textPri,
     Color textSec,
   ) {
+    final l10n = AppLocalizations.of(context)!;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       color: bg,
@@ -1250,19 +1255,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Row(
             children: [
               Expanded(child: _buildStatCard(
-                'Distance',
+                l10n.distance,
                 '${_totalDistance.toStringAsFixed(0)} km',
                 accent, surface, textPri, textSec,
               )),
               const SizedBox(width: 8),
               Expanded(child: _buildStatCard(
-                'Avg',
+                l10n.avg,
                 '${_avgSpeed.toStringAsFixed(0)} km/h',
                 accent, surface, textPri, textSec,
               )),
               const SizedBox(width: 8),
               Expanded(child: _buildStatCard(
-                'Max',
+                l10n.max,
                 '${_maxSpeed.toStringAsFixed(0)} km/h',
                 accent, surface, textPri, textSec,
               )),
@@ -1293,7 +1298,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    _isTracking ? 'STOP' : 'START',
+                    _isTracking ? l10n.stop : l10n.start,
                     style: const TextStyle(
                       color: Colors.black,
                       fontSize: 22,
@@ -1438,8 +1443,9 @@ class HistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(title: Text(l10n.history)),
       body: const Center(child: Text('History will be displayed here')),
     );
   }
