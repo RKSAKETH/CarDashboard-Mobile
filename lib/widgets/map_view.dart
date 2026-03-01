@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:lottie/lottie.dart' hide Marker;
 import '../services/voice_assistant_service.dart';
 
 const _kDarkMapStyle = '''
@@ -240,34 +241,7 @@ class _MapViewState extends State<MapView> {
     final position = widget.currentPosition;
 
     if (position == null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              widget.isSimulation ? Icons.route : Icons.location_off,
-              size: 64,
-              color: Colors.white38,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              widget.isSimulation
-                  ? 'Give a voice destination to start simulation…'
-                  : 'Waiting for GPS signal…',
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.isSimulation
-                  ? 'Tap the mic and say "Navigate to [place]"'
-                  : 'Make sure location is enabled',
-              style: const TextStyle(color: Colors.white38, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
+      return _MapLoadingPlaceholder(isSimulation: widget.isSimulation);
     }
 
     final currentLatLng = LatLng(position.latitude, position.longitude);
@@ -358,5 +332,144 @@ class _MapViewState extends State<MapView> {
   void dispose() {
     _mapController?.dispose();
     super.dispose();
+  }
+}
+
+// ─── Map Loading Placeholder (Lottie) ────────────────────────────────────────
+//
+//  Shown while position == null (i.e. GPS not yet acquired or map still loading).
+//
+
+class _MapLoadingPlaceholder extends StatelessWidget {
+  final bool isSimulation;
+  const _MapLoadingPlaceholder({required this.isSimulation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0F0F1A),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Lottie animation ──────────────────────────────────────────────
+            SizedBox(
+              width: 180,
+              height: 180,
+              child: Lottie.asset(
+                'assets/lottie/map_loading.json',
+                repeat: true,
+                animate: true,
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Headline ──────────────────────────────────────────────────────
+            Text(
+              isSimulation ? 'Simulation Ready' : 'Acquiring GPS…',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Sub text ──────────────────────────────────────────────────────
+            Text(
+              isSimulation
+                  ? 'Tap the mic and say "Navigate to [place]"'
+                  : 'Make sure location services are enabled',
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Animated dots indicator ───────────────────────────────────────
+            const _PulseDotsRow(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Three pulsing dots loading indicator
+class _PulseDotsRow extends StatefulWidget {
+  const _PulseDotsRow();
+
+  @override
+  State<_PulseDotsRow> createState() => _PulseDotsRowState();
+}
+
+class _PulseDotsRowState extends State<_PulseDotsRow>
+    with TickerProviderStateMixin {
+  late final List<AnimationController> _controllers;
+  late final List<Animation<double>>   _anims;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(3, (i) {
+      final c = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      );
+      Future.delayed(Duration(milliseconds: i * 200), () {
+        if (mounted) c.repeat(reverse: true);
+      });
+      return c;
+    });
+    _anims = _controllers
+        .map((c) => Tween<double>(begin: 0.3, end: 1.0)
+            .animate(CurvedAnimation(parent: c, curve: Curves.easeInOut)))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (i) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: AnimatedBuilder(
+            animation: _anims[i],
+            builder: (_, __) => Opacity(
+              opacity: _anims[i].value,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF00E5FF),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00E5FF)
+                          .withAlpha((_anims[i].value * 120).toInt()),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
   }
 }

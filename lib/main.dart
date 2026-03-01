@@ -4,12 +4,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/intro_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/incident_service.dart';
 import 'services/ambient_light_service.dart';
 import 'widgets/ambient_light_overlay.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
@@ -23,13 +22,13 @@ void main() async {
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-  runApp(const SpeedometerApp());
+  runApp(const VeloraDriveApp());
 }
 
 // ─── Root App ────────────────────────────────────────────────────────────────
 
-class SpeedometerApp extends StatelessWidget {
-  const SpeedometerApp({super.key});
+class VeloraDriveApp extends StatelessWidget {
+  const VeloraDriveApp({super.key});
 
   ThemeData _buildTheme(LightMode mode, bool isDark) {
     final accent  = LightThemePalette.accent(mode);
@@ -74,13 +73,13 @@ class SpeedometerApp extends StatelessWidget {
                 data: _buildTheme(mode, isDark),
                 child: MaterialApp(
                   navigatorKey: incidentNavigatorKey,
-                  title: 'Speedometer',
+                  title: 'Velora Drive',
                   debugShowCheckedModeBanner: false,
                   theme: _buildTheme(mode, isDark),
                   locale: locale,
                   localizationsDelegates: AppLocalizations.localizationsDelegates,
                   supportedLocales: AppLocalizations.supportedLocales,
-                  home: const IntroScreen(),
+                  home: const OnboardingScreen(),
                 ),
               );
             },
