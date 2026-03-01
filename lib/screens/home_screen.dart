@@ -730,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               controller: _searchController,
                               autofocus: true,
                               onChanged: _onSearchChanged,
-                              style: TextStyle(color: textPri, fontSize: 15),
+                              style: const TextStyle(color: Colors.white, fontSize: 15),
                               cursorColor: accent,
                               decoration: InputDecoration(
                                 hintText: 'Where do you want to go?',
@@ -882,6 +882,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final textSec = LightThemePalette.textSecondary(lightMode);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       drawer: const AppDrawer(),
       body: SafeArea(
         child: Column(

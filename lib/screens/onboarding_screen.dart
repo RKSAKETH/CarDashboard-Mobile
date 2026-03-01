@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:video_player/video_player.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
 
@@ -582,6 +583,8 @@ class _AuthOverlayState extends State<_AuthOverlay>
   bool _obscure = true;
   bool _agreed  = false;
 
+  late VideoPlayerController _videoCtrl;
+
   @override
   void initState() {
     super.initState();
@@ -591,6 +594,12 @@ class _AuthOverlayState extends State<_AuthOverlay>
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
+
+    _videoCtrl = VideoPlayerController.asset('assets/loads/Load.webm')
+      ..initialize().then((_) {
+        _videoCtrl.setLooping(true);
+        if (mounted) setState(() {});
+      });
   }
 
   @override
@@ -600,6 +609,7 @@ class _AuthOverlayState extends State<_AuthOverlay>
     _pass.dispose();
     _confirm.dispose();
     _name.dispose();
+    _videoCtrl.dispose();
     super.dispose();
   }
 
@@ -615,6 +625,7 @@ class _AuthOverlayState extends State<_AuthOverlay>
       return;
     }
     setState(() => _loading = true);
+    _videoCtrl.play();
     try {
       if (_isLogin) {
         await AuthService().signInWithEmailAndPassword(
@@ -632,12 +643,14 @@ class _AuthOverlayState extends State<_AuthOverlay>
     } catch (e) {
       if (mounted) _err(e.toString());
     } finally {
+      _videoCtrl.pause();
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _google() async {
     setState(() => _loading = true);
+    _videoCtrl.play();
     try {
       await AuthService().signInWithGoogle();
       if (mounted) {
@@ -649,6 +662,7 @@ class _AuthOverlayState extends State<_AuthOverlay>
     } catch (e) {
       if (mounted) _err(e.toString());
     } finally {
+      _videoCtrl.pause();
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -876,9 +890,18 @@ class _AuthOverlayState extends State<_AuthOverlay>
 
                     // Primary CTA
                     if (_loading)
-                      const Center(
-                          child: CircularProgressIndicator(
-                              color: _Brand.blue))
+                      Center(
+                        child: SizedBox(
+                          height: 100, // Size of the loader
+                          child: _videoCtrl.value.isInitialized
+                              ? AspectRatio(
+                                  aspectRatio: _videoCtrl.value.aspectRatio,
+                                  child: VideoPlayer(_videoCtrl),
+                                )
+                              : const CircularProgressIndicator(
+                                  color: _Brand.blue),
+                        ),
+                      )
                     else
                       SizedBox(
                         height: 52,

@@ -1,4 +1,6 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lottie/lottie.dart' hide Marker;
@@ -50,10 +52,83 @@ class _MapViewState extends State<MapView> {
   Set<Polyline> _polylines = {};
   Set<Marker> _markers = {};
 
+  // Cached car icons – rebuilt only when over-limit status changes
+  BitmapDescriptor? _carIconNormal;
+  BitmapDescriptor? _carIconRed;
+  bool _iconsReady = false;
+
   // Whether the user is panning the map manually (pause auto-follow)
   bool _userPanning = false;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _buildCarIcons();
+  }
+
+  Future<void> _buildCarIcons() async {
+    _carIconNormal = await _makeCarIcon(tintRed: false);
+    _carIconRed    = await _makeCarIcon(tintRed: true);
+    if (mounted) setState(() => _iconsReady = true);
+  }
+
+  // ── Asset-based car icon ────────────────────────────────────────────────
+
+  /// Load the car PNG from assets, optionally tint it red when over the speed
+  /// limit, resize to [targetSize] canvas pixels, and return as BitmapDescriptor.
+  static Future<BitmapDescriptor> _makeCarIcon({bool tintRed = false}) async {
+    const int targetSize = 120;
+
+    // Load PNG bytes from assets
+    final ByteData data =
+        await rootBundle.load('assets/images/car_marker.png');
+    final Uint8List rawBytes = data.buffer.asUint8List();
+
+    // Decode to ui.Image
+    final ui.Codec codec =
+        await ui.instantiateImageCodec(rawBytes, targetWidth: targetSize);
+    final ui.FrameInfo frame = await codec.getNextFrame();
+    final ui.Image srcImage = frame.image;
+
+    if (!tintRed) {
+      // Use directly
+      final ByteData? pngBytes =
+          await srcImage.toByteData(format: ui.ImageByteFormat.png);
+      return BitmapDescriptor.bytes(
+        pngBytes!.buffer.asUint8List(),
+        width: 64,  // larger icon — clear on map
+      );
+    }
+
+    // Tint red using a Canvas ColorFilter for over-speed state
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, targetSize.toDouble(), targetSize.toDouble()),
+    );
+    canvas.drawImage(
+      srcImage,
+      Offset.zero,
+      Paint()
+        ..colorFilter = const ColorFilter.matrix([
+          // R    G    B    A    +
+          1.2,  0.0, 0.0, 0.0, 30,  // red boost
+          0.0,  0.0, 0.0, 0.0,  0,  // kill green
+          0.0,  0.0, 0.0, 0.0,  0,  // kill blue
+          0.0,  0.0, 0.0, 1.0,  0,  // keep alpha
+        ]),
+    );
+    final pic   = recorder.endRecording();
+    final image = await pic.toImage(targetSize, targetSize);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: 64,
+    );
+  }
 
   @override
   void didUpdateWidget(MapView oldWidget) {
@@ -62,23 +137,22 @@ class _MapViewState extends State<MapView> {
     final posChanged = widget.currentPosition != oldWidget.currentPosition;
     final routeChanged = widget.activeRoute != oldWidget.activeRoute;
     final simChanged = widget.isSimulation != oldWidget.isSimulation;
+    final overLimitChanged = widget.isOverLimit != oldWidget.isOverLimit;
 
-    // Rebuild overlays when route or sim-mode changes
-    if (routeChanged || simChanged) {
+    // Rebuild overlays when route, sim-mode, or over-limit status changes
+    if (routeChanged || simChanged || overLimitChanged) {
       _rebuildOverlays();
     }
 
-    // Update car marker + follow camera on every position tick in sim mode
+    // Update car marker + follow camera on every position tick
     if (posChanged && widget.currentPosition != null) {
       if (widget.isSimulation) {
-        // Always update car marker and camera during simulation
         _updateSimMarker();
-        if (!_userPanning) {
-          _followSimPosition();
-        }
-      } else if (widget.activeRoute == null) {
-        // Dev mode, no active route → just pan to user
-        _animateToUser();
+        if (!_userPanning) _followSimPosition();
+      } else {
+        // Dev mode: keep car marker updated too
+        _updateDevMarker();
+        if (widget.activeRoute == null) _animateToUser();
       }
     }
   }
@@ -135,31 +209,54 @@ class _MapViewState extends State<MapView> {
   /// Updates only the simulated-car marker without touching polylines/dest
   void _updateSimMarker() {
     final pos = widget.currentPosition;
-    if (pos == null) return;
-
-    // Replace the 'sim_car' marker in the current set
+    if (pos == null || !_iconsReady) return;
     final updated = _markers.where((m) => m.markerId.value != 'sim_car').toSet();
     updated.addAll(_simMarkerSet());
     setState(() => _markers = updated);
   }
 
+  /// Updates the dev-mode car marker
+  void _updateDevMarker() {
+    final pos = widget.currentPosition;
+    if (pos == null || !_iconsReady) return;
+    final updated = _markers.where((m) => m.markerId.value != 'dev_car').toSet();
+    updated.add(_devCarMarker(pos));
+    setState(() => _markers = updated);
+  }
+
+  /// Builds a dev-mode car marker
+  Marker _devCarMarker(Position pos) {
+    return Marker(
+      markerId: const MarkerId('dev_car'),
+      position: LatLng(pos.latitude, pos.longitude),
+      icon: _carIconNormal!,
+      flat: true,
+      rotation: pos.heading,
+      // (0.5, 0.6): car sits on road, front slightly above center-point
+      anchor: const Offset(0.5, 0.6),
+      zIndexInt: 2,
+    );
+  }
+
   /// Builds the custom car marker at the current simulated position
   Set<Marker> _simMarkerSet() {
     final pos = widget.currentPosition;
-    if (pos == null) return {};
+    if (pos == null || !_iconsReady) return {};
+
+    final icon = widget.isOverLimit ? _carIconRed! : _carIconNormal!;
 
     return {
       Marker(
         markerId: const MarkerId('sim_car'),
         position: LatLng(pos.latitude, pos.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(
-          widget.isOverLimit
-              ? BitmapDescriptor.hueRed
-              : BitmapDescriptor.hueAzure,
-        ),
-        flat: true, // lies flat on the map so rotation looks natural
-        rotation: pos.heading, // points in direction of travel
-        anchor: const Offset(0.5, 0.5),
+        icon: icon,
+        flat: true,
+        // rotation = heading: image-top (front of car) faces direction of travel.
+        // Camera bearing is also set to heading, so on-screen the car always
+        // faces "up" = forward.
+        rotation: pos.heading,
+        // Anchor at (0.5, 0.6) so the car sits on the road naturally
+        anchor: const Offset(0.5, 0.6),
         zIndexInt: 2,
         infoWindow: InfoWindow(
           title: '🚗 ${widget.speed.toInt()} km/h',
@@ -182,10 +279,11 @@ class _MapViewState extends State<MapView> {
       CameraUpdate.newCameraPosition(
         CameraPosition(
           target: LatLng(pos.latitude, pos.longitude),
-          zoom: 17.5,
-          // Rotate map so car always faces "up"
+          zoom: 18.0,
+          // Map rotates so direction-of-travel is always "up" on screen
           bearing: pos.heading,
-          tilt: 40, // slight 3-D tilt for driving feel
+          // 52° tilt: similar to Google Maps / Waze navigation perspective
+          tilt: 52,
         ),
       ),
     );
@@ -254,8 +352,8 @@ class _MapViewState extends State<MapView> {
             target: currentLatLng,
             zoom: 17,
           ),
-          // Dev mode: use OS blue dot. Sim mode: use custom car marker instead.
-          myLocationEnabled: !widget.isSimulation,
+          // Always use custom car marker — disable OS blue dot
+          myLocationEnabled: false,
           myLocationButtonEnabled: false,
           compassEnabled: true,
           mapType: MapType.normal,
@@ -265,14 +363,14 @@ class _MapViewState extends State<MapView> {
           onMapCreated: (controller) {
             _mapController = controller;
             _rebuildOverlays();
-            if (widget.isSimulation) {
-              _followSimPosition();
+            // Add dev-mode marker on initial load
+            if (!widget.isSimulation && widget.currentPosition != null) {
+              _updateDevMarker();
             }
+            if (widget.isSimulation) _followSimPosition();
           },
-          // Detect when user starts panning (pause auto-follow)
           onCameraMoveStarted: () => _userPanning = true,
           onCameraIdle: () {
-            // Re-enable auto-follow after 3 seconds of idle
             Future.delayed(const Duration(seconds: 3), () {
               _userPanning = false;
             });

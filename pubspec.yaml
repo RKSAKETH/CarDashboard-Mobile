@@ -50,3 +50,5 @@ flutter:
   assets:
     - assets/videos/
     - assets/lottie/
+    - assets/images/
+    - assets/loads/

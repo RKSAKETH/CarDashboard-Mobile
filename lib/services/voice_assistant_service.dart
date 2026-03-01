@@ -32,7 +32,7 @@ class RouteInfo {
 
 typedef OnRouteFound = void Function(RouteInfo route);
 typedef OnNavigationStopped = void Function();
-typedef OnPageChange = void Function(int index); // 0=Gauge,1=Digital,2=Map
+typedef OnPageChange = void Function(int index); // 0=Gauge, 1=Map, 2=Music, 3=Settings, 4=Profile
 typedef OnOpenSettings = void Function();
 typedef OnVoiceStatus = void Function(String status);
 typedef OnArrived = void Function();
@@ -47,7 +47,6 @@ class VoiceAssistantService {
 
   bool _sttAvailable = false;
   bool _isListening = false;
-  bool _isSpeaking = false;
 
   // Active navigation state
   RouteInfo? _activeRoute;
@@ -73,8 +72,6 @@ class VoiceAssistantService {
     await _tts.setSpeechRate(0.48);
     await _tts.setVolume(1.0);
     await _tts.setPitch(1.0);
-    _tts.setStartHandler(() => _isSpeaking = true);
-    _tts.setCompletionHandler(() => _isSpeaking = false);
 
     // STT setup
     _sttAvailable = await _stt.initialize(
@@ -106,7 +103,6 @@ class VoiceAssistantService {
 
   Future<void> stopSpeaking() async {
     await _tts.stop();
-    _isSpeaking = false;
   }
 
   // ─── Listen ───
@@ -189,14 +185,14 @@ class VoiceAssistantService {
       speak('Switching to gauge view.');
       return;
     }
-    if (cmd.contains('digital') || cmd.contains('digital view') || cmd.contains('open digital')) {
+    if (cmd.contains('map') || cmd.contains('open map') || cmd.contains('show map')) {
       onPageChange?.call(1);
-      speak('Switching to digital view.');
+      speak('Switching to map view.');
       return;
     }
-    if (cmd.contains('map') || cmd.contains('open map') || cmd.contains('show map')) {
+    if (cmd.contains('music') || cmd.contains('open music') || cmd.contains('play music')) {
       onPageChange?.call(2);
-      speak('Switching to map view.');
+      speak('Switching to music player.');
       return;
     }
 
@@ -208,7 +204,7 @@ class VoiceAssistantService {
     }
 
     // Fallback
-    speak('Sorry, I didn\'t understand that. Try saying: navigate to a place, open gauge, open digital, open map, or open settings.');
+    speak('Sorry, I didn\'t understand that. Try saying: navigate to a place, open gauge, open map, open music, or open settings.');
   }
 
   String _cleanPlace(String raw) {
@@ -268,7 +264,7 @@ class VoiceAssistantService {
   }
 
   Future<void> _startNavigation(String place) async {
-    onPageChange?.call(2); // Switch to map
+    onPageChange?.call(1); // Switch to map
     await speak('Searching for $place. Please wait…');
 
     try {
