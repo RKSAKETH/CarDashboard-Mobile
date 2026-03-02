@@ -22,55 +22,93 @@ class GaugeView extends StatefulWidget {
 }
 
 class _GaugeViewState extends State<GaugeView>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _pulseController;
   late Animation<double> _scaleAnim;
+
+  late AnimationController _speedController;
+  late Animation<double> _speedAnim;
+  double _currentSpeed = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _currentSpeed = widget.speed;
+
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 1500),
     );
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.03).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    // Calm breathing glow animation when idle
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOutSine),
+    );
+    
+    // Always pulse when idle, but we can change frequency if over limit
+    _pulseController.repeat(reverse: true);
+
+    _speedController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _speedAnim = Tween<double>(begin: _currentSpeed, end: _currentSpeed).animate(
+      CurvedAnimation(parent: _speedController, curve: Curves.easeOutCubic),
     );
   }
 
   @override
   void didUpdateWidget(GaugeView old) {
     super.didUpdateWidget(old);
-    if (widget.isOverLimit && !_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    } else if (!widget.isOverLimit && _controller.isAnimating) {
-      _controller.stop();
-      _controller.reset();
+    
+    // Smooth speed transition
+    if (old.speed != widget.speed) {
+      _speedAnim = Tween<double>(
+        begin: _speedAnim.value, 
+        end: widget.speed
+      ).animate(CurvedAnimation(
+        parent: _speedController, 
+        curve: Curves.easeOutCubic,
+      ));
+      _speedController.forward(from: 0.0);
+    }
+    
+    if (widget.isOverLimit && !old.isOverLimit) {
+      _pulseController.duration = const Duration(milliseconds: 400);
+      _pulseController.repeat(reverse: true);
+    } else if (!widget.isOverLimit && old.isOverLimit) {
+      _pulseController.duration = const Duration(milliseconds: 1500);
+      _pulseController.repeat(reverse: true);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pulseController.dispose();
+    _speedController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: AnimatedBuilder(
-        animation: _scaleAnim,
-        builder: (_, child) => Transform.scale(
-          scale: widget.isOverLimit ? _scaleAnim.value : 1.0,
-          child: child,
-        ),
-        child: CustomPaint(
-          size: const Size(320, 320),
-          painter: _SpeedometerPainter(
-            speed: widget.speed,
-            isOverLimit: widget.isOverLimit,
-            speedLimit: widget.speedLimit,
-          ),
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_pulseController, _speedController]),
+          builder: (_, child) {
+            final s = _speedAnim.value;
+            return Transform.scale(
+              scale: widget.isOverLimit ? (_scaleAnim.value + 0.01) : _scaleAnim.value,
+              child: CustomPaint(
+                size: const Size(320, 320),
+                painter: _SpeedometerPainter(
+                  speed: s,
+                  isOverLimit: widget.isOverLimit,
+                  speedLimit: widget.speedLimit,
+                  pulseValue: _scaleAnim.value - 1.0,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -85,17 +123,46 @@ class _SpeedometerPainter extends CustomPainter {
   final double speed;
   final bool isOverLimit;
   final int? speedLimit;
+  final double pulseValue;
 
   static const double _maxSpeed = 160.0;
-
-  // Arc spans 270° — from 135° (bottom-left) clockwise to 45° (bottom-right)
   static const double _startDeg = 135.0;
   static const double _sweepDeg = 270.0;
+
+  // Reusable paint objects to avoid allocation in paint()
+  final _outerRingPaint = Paint()..style = PaintingStyle.fill;
+  final _outerBorderPaint = Paint()
+    ..color = const Color(0xFF3A3A3C)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2;
+  final _trackPaint = Paint()
+    ..color = const Color(0xFF2C2C2E)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 18
+    ..strokeCap = StrokeCap.butt;
+  final _sweepPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 18
+    ..strokeCap = StrokeCap.butt;
+  final _glowPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.butt
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+  final _tickPaint = Paint()..strokeCap = StrokeCap.round;
+  final _needlePaint = Paint()
+    ..color = Colors.white
+    ..strokeWidth = 3
+    ..strokeCap = StrokeCap.round;
+  final _bubbleRimPaint = Paint()
+    ..color = Colors.white.withAlpha(20)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5;
 
   _SpeedometerPainter({
     required this.speed,
     this.isOverLimit = false,
     this.speedLimit,
+    this.pulseValue = 0.0,
   });
 
   double _deg(double deg) => deg * pi / 180;
@@ -107,316 +174,178 @@ class _SpeedometerPainter extends CustomPainter {
     final center = Offset(cx, cy);
     final r = min(cx, cy);
 
-    // ── 1. Outer ring (dark grey) ──────────────────────────────────────────
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()..color = const Color(0xFF1C1C1E),
-    );
+    final rect = Rect.fromCircle(center: center, radius: r);
 
-    // ── 2. Outer border ring ───────────────────────────────────────────────
-    canvas.drawCircle(
-      center,
-      r - 1,
-      Paint()
-        ..color = const Color(0xFF3A3A3C)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
+    // ── 1. Outer ring ──
+    _outerRingPaint.shader = const RadialGradient(
+      colors: [Color(0xFF1A1B22), Color(0xFF101014)],
+    ).createShader(rect);
+    canvas.drawCircle(center, r, _outerRingPaint);
+    canvas.drawCircle(center, r - 1, _outerBorderPaint);
 
-    // ── 3. Track arc (background) ──────────────────────────────────────────
-    final trackRect = Rect.fromCircle(center: center, radius: r * 0.82);
-    canvas.drawArc(
-      trackRect,
-      _deg(_startDeg),
-      _deg(_sweepDeg),
-      false,
-      Paint()
-        ..color = const Color(0xFF2C2C2E)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 18
-        ..strokeCap = StrokeCap.butt,
-    );
+    // ── 3. Track arc ──
+    final trackR = r * 0.82;
+    final trackRect = Rect.fromCircle(center: center, radius: trackR);
+    canvas.drawArc(trackRect, _deg(_startDeg), _deg(_sweepDeg), false, _trackPaint);
 
-    // ── 4. Speed sweep arc (red) ───────────────────────────────────────────
+    // ── 4. Speed sweep ──
     final fraction = (speed / _maxSpeed).clamp(0.0, 1.0);
+    final speedGlowIntensity = fraction * 0.5 + pulseValue * 15;
+    
     if (fraction > 0) {
-      final sweepColor = isOverLimit
-          ? const Color(0xFFFF453A)  // bright red when over limit
-          : const Color(0xFFFF3B30); // standard red sweep
+      final sweepColor = isOverLimit ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88);
+      
+      _glowPaint.color = sweepColor.withValues(alpha: (0.4 + speedGlowIntensity * 0.2).clamp(0.0, 1.0));
+      _glowPaint.strokeWidth = 28 + (speedGlowIntensity * 5);
+      canvas.drawArc(trackRect, _deg(_startDeg), _deg(_sweepDeg * fraction), false, _glowPaint);
 
-      // Glow
-      canvas.drawArc(
-        trackRect,
-        _deg(_startDeg),
-        _deg(_sweepDeg * fraction),
-        false,
-        Paint()
-          ..color = sweepColor.withAlpha(60)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 28
-          ..strokeCap = StrokeCap.butt
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-      );
-
-      // Main arc
-      canvas.drawArc(
-        trackRect,
-        _deg(_startDeg),
-        _deg(_sweepDeg * fraction),
-        false,
-        Paint()
-          ..color = sweepColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 18
-          ..strokeCap = StrokeCap.butt,
-      );
+      _sweepPaint.color = sweepColor;
+      canvas.drawArc(trackRect, _deg(_startDeg), _deg(_sweepDeg * fraction), false, _sweepPaint);
     }
 
-    // ── 5. Tick marks & labels ─────────────────────────────────────────────
-    const majorStep = 20;           // label every 20 km/h
-    const minorCount = 160;         // one tick per km/h step
-
+    // ── 5. Ticks ──
+    const minorCount = 160;
     for (int i = 0; i <= minorCount; i++) {
       final v = (i / minorCount) * _maxSpeed;
-      final angleDeg = _startDeg + (i / minorCount) * _sweepDeg;
-      final rad = _deg(angleDeg);
+      final angleRad = _deg(_startDeg + (i / minorCount) * _sweepDeg);
 
-      final isMajor = (v % majorStep < 0.01);
-      final isMid   = (v % (majorStep / 2) < 0.01);
+      final isMajor = i % 20 == 0;
+      final isMid   = i % 10 == 0;
 
       final tickOuter = r * 0.82;
       final tickLen   = isMajor ? 16.0 : (isMid ? 10.0 : 5.0);
-      final tickW     = isMajor ? 2.5 : (isMid ? 1.5 : 1.0);
+      
+      _tickPaint.color = v <= speed 
+          ? (isOverLimit ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+          : Colors.white24;
+      _tickPaint.strokeWidth = isMajor ? 2.5 : (isMid ? 1.5 : 1.0);
 
-      // Color: red for ticks beyond speed limit
-      Color tickColor = Colors.white38;
-      if (isOverLimit) {
-        tickColor = v <= speed
-            ? const Color(0xFFFF3B30)
-            : Colors.white24;
-      }
-
-      final ox = cx + tickOuter * cos(rad);
-      final oy = cy + tickOuter * sin(rad);
-      final ix = cx + (tickOuter - tickLen) * cos(rad);
-      final iy = cy + (tickOuter - tickLen) * sin(rad);
-
+      final cosA = cos(angleRad);
+      final sinA = sin(angleRad);
+      
       canvas.drawLine(
-        Offset(ox, oy),
-        Offset(ix, iy),
-        Paint()
-          ..color = tickColor
-          ..strokeWidth = tickW
-          ..strokeCap = StrokeCap.round,
+        Offset(cx + tickOuter * cosA, cy + tickOuter * sinA),
+        Offset(cx + (tickOuter - tickLen) * cosA, cy + (tickOuter - tickLen) * sinA),
+        _tickPaint,
       );
 
-      // Major labels
       if (isMajor) {
-        final labelR = r * 0.63;
-        final lx = cx + labelR * cos(rad);
-        final ly = cy + labelR * sin(rad);
-
-        final tp = TextPainter(
-          text: TextSpan(
-            text: v.toInt().toString(),
-            style: TextStyle(
-              color: Colors.white.withAlpha(200),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.5,
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-
-        tp.paint(
-          canvas,
-          Offset(lx - tp.width / 2, ly - tp.height / 2),
-        );
+        _drawMajorLabel(canvas, cx, cy, r, angleRad, v.toInt());
       }
     }
 
-    // ── 6. White needle marker at current speed tip ────────────────────────
+    // ── 6. Needle ──
     if (fraction > 0) {
       final tipRad = _deg(_startDeg + _sweepDeg * fraction);
       canvas.drawLine(
         Offset(cx + r * 0.74 * cos(tipRad), cy + r * 0.74 * sin(tipRad)),
         Offset(cx + r * 0.90 * cos(tipRad), cy + r * 0.90 * sin(tipRad)),
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round,
+        _needlePaint,
       );
     }
 
-    // ── 7. Inner bubble ────────────────────────────────────────────────────
-    // Gradient fill for depth
+    // ── 7. Inner bubble ──
     final bubbleR = r * 0.56;
     final bubblePaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.3, -0.3),
+      ..shader = const RadialGradient(
+        center: Alignment(-0.3, -0.3),
         radius: 1.0,
-        colors: [
-          const Color(0xFF2C2C2E),
-          const Color(0xFF1C1C1E),
-        ],
-      ).createShader(
-        Rect.fromCircle(center: center, radius: bubbleR),
-      );
+        colors: [Color(0xFF1E1F26), Color(0xFF14151A)],
+      ).createShader(Rect.fromCircle(center: center, radius: bubbleR));
     canvas.drawCircle(center, bubbleR, bubblePaint);
+    canvas.drawCircle(center, bubbleR, _bubbleRimPaint);
 
-    // Subtle rim on inner bubble
-    canvas.drawCircle(
-      center,
-      bubbleR,
-      Paint()
-        ..color = Colors.white.withAlpha(20)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-
-    // ── 8. Speed number ────────────────────────────────────────────────────
-    final speedStr = speed.toInt().toString();
-    final speedTp = TextPainter(
-      text: TextSpan(
-        text: speedStr,
-        style: TextStyle(
-          color: isOverLimit ? const Color(0xFFFF453A) : Colors.white,
-          fontSize: 72,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -2,
-          height: 1,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    speedTp.paint(
-      canvas,
-      Offset(cx - speedTp.width / 2, cy - speedTp.height / 2 - 8),
-    );
-
-    // ── 9. km/h label ─────────────────────────────────────────────────────
-    final unitTp = TextPainter(
-      text: const TextSpan(
-        text: 'km/h',
-        style: TextStyle(
-          color: Colors.white54,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    unitTp.paint(
-      canvas,
-      Offset(cx - unitTp.width / 2, cy + 38),
-    );
-
-    // ── 10. Speed limit badge (road-sign style) ────────────────────────────
+    // ── 8. Text ──
+    _drawSpeedText(canvas, cx, cy, isOverLimit, speedGlowIntensity);
+    
     if (speedLimit != null) {
       _drawSpeedLimitBadge(canvas, center, r, speedLimit!, isOverLimit);
     }
   }
 
-  void _drawSpeedLimitBadge(
-    Canvas canvas,
-    Offset center,
-    double r,
-    int limit,
-    bool over,
-  ) {
-    // Position: bottom center of the gauge
+  void _drawMajorLabel(Canvas canvas, double cx, double cy, double r, double rad, int val) {
+    final labelR = r * 0.63;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: val.toString(),
+        style: TextStyle(
+          color: Colors.white.withAlpha(200),
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    tp.paint(canvas, Offset(cx + labelR * cos(rad) - tp.width / 2, cy + labelR * sin(rad) - tp.height / 2));
+  }
+
+  void _drawSpeedText(Canvas canvas, double cx, double cy, bool over, double intensity) {
+    final speedStr = speed.toInt().toString();
+    final speedTp = TextPainter(
+      text: TextSpan(
+        text: speedStr,
+        style: TextStyle(
+          color: over ? const Color(0xFFFF3B3B) : Colors.white,
+          fontSize: 76,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'Inter',
+          letterSpacing: -1.5,
+          height: 1,
+          shadows: [
+            Shadow(
+              color: over ? const Color(0xFFFF3B3B).withAlpha(150) : const Color(0xFF00FF88).withAlpha(100),
+              blurRadius: 18 + intensity * 10,
+            ),
+          ],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    speedTp.paint(canvas, Offset(cx - speedTp.width / 2, cy - speedTp.height / 2 - 8));
+
+    final unitTp = TextPainter(
+      text: const TextSpan(
+        text: 'km/h',
+        style: TextStyle(color: Colors.white54, fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 2),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    unitTp.paint(canvas, Offset(cx - unitTp.width / 2, cy + 38));
+  }
+
+  void _drawSpeedLimitBadge(Canvas canvas, Offset center, double r, int limit, bool over) {
     final badgeCx = center.dx;
     final badgeCy = center.dy + r * 0.78;
-
     const badgeW = 52.0;
     const badgeH = 58.0;
-    const rx = 6.0;
 
     final badgeRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-          center: Offset(badgeCx, badgeCy),
-          width: badgeW,
-          height: badgeH),
-      const Radius.circular(rx),
+      Rect.fromCenter(center: Offset(badgeCx, badgeCy), width: badgeW, height: badgeH),
+      const Radius.circular(6.0),
     );
 
-    // White background
-    canvas.drawRRect(
-      badgeRect,
-      Paint()..color = const Color(0xFFD8D8D8),
-    );
+    canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFF1E1F26).withValues(alpha: 0.6)..maskFilter = const MaskFilter.blur(BlurStyle.solid, 4));
+    canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFF14151A).withValues(alpha: 0.8));
+    canvas.drawRRect(badgeRect, Paint()..color = Colors.white.withAlpha(30)..style = PaintingStyle.stroke..strokeWidth = 1.5);
 
-    // Dark border
-    canvas.drawRRect(
-      badgeRect,
-      Paint()
-        ..color = const Color(0xFF444444)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-
-    // "LIMIT" text
     final limitLabelTp = TextPainter(
-      text: const TextSpan(
-        text: 'LIMIT',
-        style: TextStyle(
-          color: Color(0xFF222222),
-          fontSize: 9,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1,
-        ),
-      ),
+      text: const TextSpan(text: 'LIMIT', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1)),
       textDirection: TextDirection.ltr,
     )..layout();
+    limitLabelTp.paint(canvas, Offset(badgeCx - limitLabelTp.width / 2, badgeCy - badgeH / 2 + 6));
 
-    limitLabelTp.paint(
-      canvas,
-      Offset(
-        badgeCx - limitLabelTp.width / 2,
-        badgeCy - badgeH / 2 + 6,
-      ),
-    );
+    canvas.drawLine(Offset(badgeCx - badgeW / 2 + 4, badgeCy - 4), Offset(badgeCx + badgeW / 2 - 4, badgeCy - 4), Paint()..color = const Color(0xFF444444)..strokeWidth = 1.5);
 
-    // Divider line
-    canvas.drawLine(
-      Offset(badgeCx - badgeW / 2 + 4, badgeCy - 4),
-      Offset(badgeCx + badgeW / 2 - 4, badgeCy - 4),
-      Paint()
-        ..color = const Color(0xFF444444)
-        ..strokeWidth = 1.5,
-    );
-
-    // Limit number
     final numTp = TextPainter(
-      text: TextSpan(
-        text: limit.toString(),
-        style: TextStyle(
-          color: over ? const Color(0xFFCC0000) : const Color(0xFF111111),
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
-          height: 1,
-        ),
-      ),
+      text: TextSpan(text: limit.toString(), style: TextStyle(color: over ? const Color(0xFFFF7A00) : Colors.white, fontSize: 22, fontWeight: FontWeight.w700, fontFamily: 'Inter', height: 1, shadows: [if (over) Shadow(color: const Color(0xFFFF7A00).withAlpha(180), blurRadius: 8)])),
       textDirection: TextDirection.ltr,
     )..layout();
-
-    numTp.paint(
-      canvas,
-      Offset(
-        badgeCx - numTp.width / 2,
-        badgeCy + 2,
-      ),
-    );
+    numTp.paint(canvas, Offset(badgeCx - numTp.width / 2, badgeCy + 2));
   }
 
   @override
   bool shouldRepaint(_SpeedometerPainter old) =>
-      old.speed != speed ||
-      old.isOverLimit != isOverLimit ||
-      old.speedLimit != speedLimit;
+      old.speed != speed || old.isOverLimit != isOverLimit || old.speedLimit != speedLimit || old.pulseValue != pulseValue;
 }

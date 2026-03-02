@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
@@ -563,41 +564,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           // ─── General ───────────────────────────────────────────────────
           _SectionHeader(title: l10n.general),
-          SwitchListTile(
-            tileColor: Colors.transparent,
-            title: Text(l10n.keepScreenOn, style: TextStyle(color: textPri)),
-            subtitle: Text('Prevent screen from turning off', style: TextStyle(color: textSec)),
-            value: true,
-            onChanged: (value) {},
-            activeThumbColor: accent,
-          ),
-          SwitchListTile(
-            tileColor: Colors.transparent,
-            title: Text(l10n.soundEffects, style: TextStyle(color: textPri)),
-            subtitle: Text('Play sounds during tracking', style: TextStyle(color: textSec)),
-            value: false,
-            onChanged: (value) {},
-            activeThumbColor: accent,
-          ),
-          ListTile(
-            title: Text(l10n.speedUnit, style: TextStyle(color: textPri)),
-            subtitle: Text('km/h', style: TextStyle(color: textSec)),
-            trailing: Icon(Icons.chevron_right, color: textSec),
-            onTap: () {},
-          ),
-          ListTile(
-            title: Text(l10n.distanceUnit, style: TextStyle(color: textPri)),
-            subtitle: Text('Kilometers', style: TextStyle(color: textSec)),
-            trailing: Icon(Icons.chevron_right, color: textSec),
-            onTap: () {},
-          ),
-          ListTile(
-            title: Text(l10n.language, style: TextStyle(color: textPri)),
-            subtitle: Text(localeName, style: TextStyle(color: textSec)),
-            trailing: Icon(Icons.chevron_right, color: textSec),
-            onTap: () {
-              const AppDrawer().showLanguageDialog(context);
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1F26).withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        tileColor: Colors.transparent,
+                        title: Text(l10n.keepScreenOn, style: TextStyle(color: textPri)),
+                        subtitle: Text('Prevent screen from turning off', style: TextStyle(color: textSec)),
+                        value: true,
+                        onChanged: (value) {},
+                        activeColor: Colors.black,
+                        activeTrackColor: accent,
+                        inactiveThumbColor: textSec,
+                        inactiveTrackColor: Colors.white12,
+                        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+                      ),
+                      Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                      SwitchListTile(
+                        tileColor: Colors.transparent,
+                        title: Text(l10n.soundEffects, style: TextStyle(color: textPri)),
+                        subtitle: Text('Play sounds during tracking', style: TextStyle(color: textSec)),
+                        value: false,
+                        onChanged: (value) {},
+                        activeColor: Colors.black,
+                        activeTrackColor: accent,
+                        inactiveThumbColor: textSec,
+                        inactiveTrackColor: Colors.white12,
+                        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+                      ),
+                      Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                      ListTile(
+                        title: Text(l10n.speedUnit, style: TextStyle(color: textPri)),
+                        subtitle: Text('km/h', style: TextStyle(color: textSec)),
+                        trailing: Icon(Icons.chevron_right, color: textSec),
+                        onTap: () {},
+                      ),
+                      Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                      ListTile(
+                        title: Text(l10n.distanceUnit, style: TextStyle(color: textPri)),
+                        subtitle: Text('Kilometers', style: TextStyle(color: textSec)),
+                        trailing: Icon(Icons.chevron_right, color: textSec),
+                        onTap: () {},
+                      ),
+                      Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
+                      ListTile(
+                        title: Text(l10n.language, style: TextStyle(color: textPri)),
+                        subtitle: Text(localeName, style: TextStyle(color: textSec)),
+                        trailing: Icon(Icons.chevron_right, color: textSec),
+                        onTap: () {
+                          const AppDrawer().showLanguageDialog(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
 
           // ─── Ambient Light ─────────────────────────────────────────────

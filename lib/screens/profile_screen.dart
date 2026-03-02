@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
@@ -83,9 +84,11 @@ class ProfileScreen extends StatelessWidget {
                 icon: const Icon(Icons.logout),
                 label: Text(l10n.logout.toUpperCase()),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.withOpacity(0.2),
-                  foregroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: const Color(0xFFFF6B6B).withValues(alpha: 0.15),
+                  foregroundColor: const Color(0xFFFF6B6B),
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  elevation: 0,
                 ),
               ),
             ),
@@ -127,17 +130,36 @@ class ProfileScreen extends StatelessWidget {
         final displayName = userData?['displayName'] ?? 'Unknown User';
         final email = userData?['email'] ?? 'No email';
 
-        return Card(
-          color: bg,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1F26).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 40, spreadRadius: 4),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
             child: Column(
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: const Color(0xFF2A2A2A),
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent.withValues(alpha: 0.6), width: 3),
+                        boxShadow: [
+                          BoxShadow(color: accent.withValues(alpha: 0.5), blurRadius: 24, spreadRadius: 4),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: const Color(0xFF14151A),
                       backgroundImage: userData?['photoUrl'] != null &&
                                      userData!['photoUrl'].toString().isNotEmpty
                           ? NetworkImage(userData['photoUrl'])
@@ -146,6 +168,7 @@ class ProfileScreen extends StatelessWidget {
                              userData!['photoUrl'].toString().isEmpty
                           ? Icon(Icons.person, size: 40, color: accent)
                           : null,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -202,7 +225,9 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -380,10 +405,21 @@ class ProfileScreen extends StatelessWidget {
 
         final stats = snapshot.data ?? {};
 
-        return Card(
-          color: bg,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1F26).withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 40, spreadRadius: 4),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -422,7 +458,9 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
-        );
+        ),
+      ),
+    );
       },
     );
   }
@@ -430,24 +468,59 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildStatItem(
       String label, String value, IconData icon,
       Color textPri, Color textSec, Color accent) {
-    return Column(
-      children: [
-        Icon(icon, color: accent, size: 32),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: textPri,
+    return Container(
+      width: 100,
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14151A),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: accent.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(color: accent.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 2),
+        ],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: 0.8),
+                  duration: const Duration(milliseconds: 1500),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) {
+                    return CircularProgressIndicator(
+                      value: value,
+                      strokeWidth: 3,
+                      strokeCap: StrokeCap.round,
+                      color: accent,
+                      backgroundColor: Colors.white12,
+                    );
+                  }
+                ),
+              ),
+              Icon(icon, color: accent, size: 24),
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: textSec),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textPri,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: textSec),
+          ),
+        ],
+      ),
     );
   }
 
@@ -499,9 +572,16 @@ class ProfileScreen extends StatelessWidget {
             return Column(
               children: trips.map((doc) {
                 final trip = doc.data() as Map<String, dynamic>;
-                return Card(
-                  color: bg,
-                  margin: const EdgeInsets.only(bottom: 8),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1F26).withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 20),
+                    ],
+                  ),
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: accent,
@@ -524,7 +604,7 @@ class ProfileScreen extends StatelessWidget {
                       style: TextStyle(color: textSec),
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: const Icon(Icons.delete_outline, color: Color(0xFFFF6B6B)), // Coral red
                       onPressed: () async {
                         final confirmed = await _showDeleteDialog(context);
                         if (confirmed == true) {

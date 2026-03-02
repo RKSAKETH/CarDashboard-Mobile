@@ -330,21 +330,21 @@ class LightThemePalette {
 
   // ── Accent (primary indicator colour) ──
   static Color accent(LightMode mode) {
-    if (!isDarkModeNotifier.value) return const Color(0xFF00C853);
+    if (!isDarkModeNotifier.value) return const Color(0xFF00C2FF); // Electric Blue
     return switch (mode) {
-      LightMode.day      => const Color(0xFF00FF00), // neon green
-      LightMode.twilight => const Color(0xFFFFBF00), // amber
-      LightMode.night    => const Color(0xFFFF2400), // aviation red
+      LightMode.day      => const Color(0xFF00FF88), // Electric Green
+      LightMode.twilight => const Color(0xFF00C2FF), // Electric Blue
+      LightMode.night    => const Color(0xFFFF7A00), // Soft Orange
     };
   }
 
   // ── Background ──
   static Color background(LightMode mode) {
-    if (!isDarkModeNotifier.value) return const Color(0xFFF5F5F5);
+    if (!isDarkModeNotifier.value) return const Color(0xFFF5F5F7);
     return switch (mode) {
-      LightMode.day      => const Color(0xFF1A1A1A),
-      LightMode.twilight => const Color(0xFF12100E),
-      LightMode.night    => const Color(0xFF0D0000),
+      LightMode.day      => const Color(0xFF14151A), // Graphite Black
+      LightMode.twilight => const Color(0xFF101014), // Darker Graphite
+      LightMode.night    => const Color(0xFF0A0A0C), // Matte Black
     };
   }
 
@@ -352,29 +352,29 @@ class LightThemePalette {
   static Color surface(LightMode mode) {
     if (!isDarkModeNotifier.value) return Colors.white;
     return switch (mode) {
-      LightMode.day      => const Color(0xFF2A2A2A),
-      LightMode.twilight => const Color(0xFF1E1A14),
-      LightMode.night    => const Color(0xFF1A0606),
+      LightMode.day      => const Color(0xFF1E1F26), // Glassmorphism base
+      LightMode.twilight => const Color(0xFF18191E),
+      LightMode.night    => const Color(0xFF121216),
     };
   }
 
   // ── Primary text ──
   static Color textPrimary(LightMode mode) {
-    if (!isDarkModeNotifier.value) return Colors.black87;
+    if (!isDarkModeNotifier.value) return const Color(0xFF2C2C2E);
     return switch (mode) {
       LightMode.day      => Colors.white,
-      LightMode.twilight => const Color(0xFFFFECCC),
-      LightMode.night    => const Color(0xFFFF8080),
+      LightMode.twilight => Colors.white.withAlpha(240),
+      LightMode.night    => Colors.white.withAlpha(220),
     };
   }
 
   // ── Secondary text ──
   static Color textSecondary(LightMode mode) {
-    if (!isDarkModeNotifier.value) return Colors.black54;
+    if (!isDarkModeNotifier.value) return const Color(0xFF8E8E93);
     return switch (mode) {
-      LightMode.day      => Colors.white70,
-      LightMode.twilight => const Color(0xFFCCAA88).withAlpha(180),
-      LightMode.night    => const Color(0xFFFF6060).withAlpha(180),
+      LightMode.day      => Colors.white.withAlpha(160),
+      LightMode.twilight => Colors.white.withAlpha(140),
+      LightMode.night    => Colors.white.withAlpha(120),
     };
   }
 

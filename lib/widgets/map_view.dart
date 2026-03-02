@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -8,14 +9,20 @@ import '../services/voice_assistant_service.dart';
 
 const _kDarkMapStyle = '''
 [
-  {"elementType":"geometry","stylers":[{"color":"#1d2c4d"}]},
-  {"elementType":"labels.text.fill","stylers":[{"color":"#8ec3b9"}]},
-  {"elementType":"labels.text.stroke","stylers":[{"color":"#1a3646"}]},
-  {"featureType":"road","elementType":"geometry","stylers":[{"color":"#304a7d"}]},
-  {"featureType":"road","elementType":"labels.text.fill","stylers":[{"color":"#98a5be"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1626"}]},
-  {"featureType":"poi","elementType":"geometry","stylers":[{"color":"#283d6a"}]},
-  {"featureType":"transit","elementType":"geometry","stylers":[{"color":"#2f3948"}]}
+  {"elementType": "geometry", "stylers": [{"color": "#14151A"}]},
+  {"elementType": "labels.icon", "stylers": [{"visibility": "off"}]},
+  {"elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"elementType": "labels.text.stroke", "stylers": [{"color": "#212121"}]},
+  {"featureType": "administrative", "elementType": "geometry", "stylers": [{"color": "#757575"}]},
+  {"featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{"color": "#9e9e9e"}]},
+  {"featureType": "administrative.locality", "elementType": "labels.text.fill", "stylers": [{"color": "#bdbdbd"}]},
+  {"featureType": "poi", "elementType": "labels.text.fill", "stylers": [{"color": "#757575"}]},
+  {"featureType": "poi.park", "elementType": "geometry", "stylers": [{"color": "#181818"}]},
+  {"featureType": "road", "elementType": "geometry.fill", "stylers": [{"color": "#2c2c2e"}]},
+  {"featureType": "road", "elementType": "labels.text.fill", "stylers": [{"color": "#8a8a8a"}]},
+  {"featureType": "road.arterial", "elementType": "geometry", "stylers": [{"color": "#373739"}]},
+  {"featureType": "road.highway", "elementType": "geometry", "stylers": [{"color": "#3c3c3e"}]},
+  {"featureType": "water", "elementType": "geometry", "stylers": [{"color": "#0a0a0c"}]}
 ]
 ''';
 
@@ -49,18 +56,17 @@ class MapView extends StatefulWidget {
 
 class _MapViewState extends State<MapView> {
   GoogleMapController? _mapController;
-  Set<Polyline> _polylines = {};
-  Set<Marker> _markers = {};
+  
+  // ── Reactive Notifiers ─────────────────────────────────────────────────────
+  final ValueNotifier<Set<Polyline>> _polylinesNotifier = ValueNotifier<Set<Polyline>>({});
+  final ValueNotifier<Set<Marker>>   _markersNotifier   = ValueNotifier<Set<Marker>>({});
+  final ValueNotifier<bool>          _iconsReadyNotifier = ValueNotifier<bool>(false);
 
-  // Cached car icons – rebuilt only when over-limit status changes
+  // Cached car icons
   BitmapDescriptor? _carIconNormal;
   BitmapDescriptor? _carIconRed;
-  bool _iconsReady = false;
 
-  // Whether the user is panning the map manually (pause auto-follow)
   bool _userPanning = false;
-
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -71,7 +77,7 @@ class _MapViewState extends State<MapView> {
   Future<void> _buildCarIcons() async {
     _carIconNormal = await _makeCarIcon(tintRed: false);
     _carIconRed    = await _makeCarIcon(tintRed: true);
-    if (mounted) setState(() => _iconsReady = true);
+    if (mounted) _iconsReadyNotifier.value = true;
   }
 
   // ── Asset-based car icon ────────────────────────────────────────────────
@@ -130,6 +136,8 @@ class _MapViewState extends State<MapView> {
     );
   }
 
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
+
   @override
   void didUpdateWidget(MapView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -139,42 +147,34 @@ class _MapViewState extends State<MapView> {
     final simChanged = widget.isSimulation != oldWidget.isSimulation;
     final overLimitChanged = widget.isOverLimit != oldWidget.isOverLimit;
 
-    // Rebuild overlays when route, sim-mode, or over-limit status changes
     if (routeChanged || simChanged || overLimitChanged) {
       _rebuildOverlays();
     }
 
-    // Update car marker + follow camera on every position tick
     if (posChanged && widget.currentPosition != null) {
       if (widget.isSimulation) {
         _updateSimMarker();
         if (!_userPanning) _followSimPosition();
       } else {
-        // Dev mode: keep car marker updated too
         _updateDevMarker();
         if (widget.activeRoute == null) _animateToUser();
       }
     }
   }
 
-  // ── Overlays ───────────────────────────────────────────────────────────────
-
   void _rebuildOverlays() {
     final route = widget.activeRoute;
     if (route == null) {
-      // Keep sim marker if still in sim mode
-      setState(() {
-        _polylines = {};
-        _markers = widget.isSimulation ? _simMarkerSet() : {};
-      });
+      _polylinesNotifier.value = {};
+      _markersNotifier.value   = widget.isSimulation ? _simMarkerSet() : {};
       return;
     }
 
     final routePolyline = Polyline(
       polylineId: const PolylineId('route'),
       points: route.polylinePoints,
-      color: const Color(0xFF00E5FF),
-      width: 5,
+      color: const Color(0xFF00FF88),
+      width: 6,
       endCap: Cap.roundCap,
       startCap: Cap.roundCap,
       jointType: JointType.round,
@@ -193,12 +193,9 @@ class _MapViewState extends State<MapView> {
     final baseMarkers = <Marker>{destMarker};
     if (widget.isSimulation) baseMarkers.addAll(_simMarkerSet());
 
-    setState(() {
-      _polylines = {routePolyline};
-      _markers = baseMarkers;
-    });
+    _polylinesNotifier.value = {routePolyline};
+    _markersNotifier.value   = baseMarkers;
 
-    // In simulation mode start following immediately; otherwise fit bounds
     if (widget.isSimulation) {
       _followSimPosition();
     } else {
@@ -206,22 +203,26 @@ class _MapViewState extends State<MapView> {
     }
   }
 
-  /// Updates only the simulated-car marker without touching polylines/dest
   void _updateSimMarker() {
     final pos = widget.currentPosition;
-    if (pos == null || !_iconsReady) return;
-    final updated = _markers.where((m) => m.markerId.value != 'sim_car').toSet();
+    if (pos == null || !_iconsReadyNotifier.value) return;
+    
+    final updated = _markersNotifier.value
+        .where((m) => m.markerId.value != 'sim_car')
+        .toSet();
     updated.addAll(_simMarkerSet());
-    setState(() => _markers = updated);
+    _markersNotifier.value = updated;
   }
 
-  /// Updates the dev-mode car marker
   void _updateDevMarker() {
     final pos = widget.currentPosition;
-    if (pos == null || !_iconsReady) return;
-    final updated = _markers.where((m) => m.markerId.value != 'dev_car').toSet();
+    if (pos == null || !_iconsReadyNotifier.value) return;
+    
+    final updated = _markersNotifier.value
+        .where((m) => m.markerId.value != 'dev_car')
+        .toSet();
     updated.add(_devCarMarker(pos));
-    setState(() => _markers = updated);
+    _markersNotifier.value = updated;
   }
 
   /// Builds a dev-mode car marker
@@ -232,7 +233,6 @@ class _MapViewState extends State<MapView> {
       icon: _carIconNormal!,
       flat: true,
       rotation: pos.heading,
-      // (0.5, 0.6): car sits on road, front slightly above center-point
       anchor: const Offset(0.5, 0.6),
       zIndexInt: 2,
     );
@@ -241,7 +241,7 @@ class _MapViewState extends State<MapView> {
   /// Builds the custom car marker at the current simulated position
   Set<Marker> _simMarkerSet() {
     final pos = widget.currentPosition;
-    if (pos == null || !_iconsReady) return {};
+    if (pos == null || !_iconsReadyNotifier.value) return {};
 
     final icon = widget.isOverLimit ? _carIconRed! : _carIconNormal!;
 
@@ -251,11 +251,7 @@ class _MapViewState extends State<MapView> {
         position: LatLng(pos.latitude, pos.longitude),
         icon: icon,
         flat: true,
-        // rotation = heading: image-top (front of car) faces direction of travel.
-        // Camera bearing is also set to heading, so on-screen the car always
-        // faces "up" = forward.
         rotation: pos.heading,
-        // Anchor at (0.5, 0.6) so the car sits on the road naturally
         anchor: const Offset(0.5, 0.6),
         zIndexInt: 2,
         infoWindow: InfoWindow(
@@ -270,7 +266,6 @@ class _MapViewState extends State<MapView> {
 
   // ── Camera ─────────────────────────────────────────────────────────────────
 
-  /// Smoothly follows the simulated car, including bearing (heading)
   void _followSimPosition() {
     final pos = widget.currentPosition;
     if (_mapController == null || pos == null) return;
@@ -280,9 +275,7 @@ class _MapViewState extends State<MapView> {
         CameraPosition(
           target: LatLng(pos.latitude, pos.longitude),
           zoom: 18.0,
-          // Map rotates so direction-of-travel is always "up" on screen
           bearing: pos.heading,
-          // 52° tilt: similar to Google Maps / Waze navigation perspective
           tilt: 52,
         ),
       ),
@@ -344,53 +337,50 @@ class _MapViewState extends State<MapView> {
 
     final currentLatLng = LatLng(position.latitude, position.longitude);
 
-    return Stack(
-      children: [
-        // ── Map ─────────────────────────────────────────────────────────────
-        GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: currentLatLng,
-            zoom: 17,
+    return RepaintBoundary(
+      child: Stack(
+        children: [
+          // ── Map ──
+          ValueListenableBuilder2<Set<Polyline>, Set<Marker>>(
+            _polylinesNotifier,
+            _markersNotifier,
+            (_, polylines, markers) => GoogleMap(
+              initialCameraPosition: CameraPosition(target: currentLatLng, zoom: 17),
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              compassEnabled: true,
+              mapType: MapType.normal,
+              style: _kDarkMapStyle,
+              polylines: polylines,
+              markers: markers,
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _rebuildOverlays();
+                if (!widget.isSimulation && widget.currentPosition != null) {
+                  _updateDevMarker();
+                }
+                if (widget.isSimulation) _followSimPosition();
+              },
+              onCameraMoveStarted: () => _userPanning = true,
+              onCameraIdle: () {
+                Future.delayed(const Duration(seconds: 3), () {
+                  _userPanning = false;
+                });
+              },
+            ),
           ),
-          // Always use custom car marker — disable OS blue dot
-          myLocationEnabled: false,
-          myLocationButtonEnabled: false,
-          compassEnabled: true,
-          mapType: MapType.normal,
-          style: _kDarkMapStyle,
-          polylines: _polylines,
-          markers: _markers,
-          onMapCreated: (controller) {
-            _mapController = controller;
-            _rebuildOverlays();
-            // Add dev-mode marker on initial load
-            if (!widget.isSimulation && widget.currentPosition != null) {
-              _updateDevMarker();
-            }
-            if (widget.isSimulation) _followSimPosition();
-          },
-          onCameraMoveStarted: () => _userPanning = true,
-          onCameraIdle: () {
-            Future.delayed(const Duration(seconds: 3), () {
-              _userPanning = false;
-            });
-          },
-        ),
 
-
-        // ── Coordinates Card (dev mode only) ─────────────────────────────
-        if (!widget.isSimulation && widget.activeRoute == null)
-          Positioned(
-            left: 12,
-            bottom: 12,
-            child: _buildCoordsCard(position),
-          ),
-      ],
+          // ── Coordinates Card ──
+          if (!widget.isSimulation && widget.activeRoute == null)
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: _buildCoordsCard(position),
+            ),
+        ],
+      ),
     );
   }
-
-
-  // ── Coords Card ─────────────────────────────────────────────────────────────
 
   Widget _buildCoordsCard(Position position) {
     return Container(
@@ -406,37 +396,54 @@ class _MapViewState extends State<MapView> {
         children: [
           Text(
             position.latitude.toStringAsFixed(5),
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-          const Text('Lat',
-              style: TextStyle(fontSize: 10, color: Colors.white54)),
+          const Text('Lat', style: TextStyle(fontSize: 10, color: Colors.white54)),
           const SizedBox(height: 4),
           Text(
             position.longitude.toStringAsFixed(5),
-            style: const TextStyle(
-                fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-          const Text('Lng',
-              style: TextStyle(fontSize: 10, color: Colors.white54)),
+          const Text('Lng', style: TextStyle(fontSize: 10, color: Colors.white54)),
         ],
       ),
     );
   }
 
-  // ── Dispose ─────────────────────────────────────────────────────────────────
-
   @override
   void dispose() {
     _mapController?.dispose();
+    _polylinesNotifier.dispose();
+    _markersNotifier.dispose();
+    _iconsReadyNotifier.dispose();
     super.dispose();
   }
 }
 
+// ── Helpers ──
+class ValueListenableBuilder2<A, B> extends StatelessWidget {
+  const ValueListenableBuilder2(
+    this.first,
+    this.second,
+    this.builder, {
+    super.key,
+  });
+
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final Widget Function(BuildContext context, A a, B b) builder;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<A>(
+        valueListenable: first,
+        builder: (context, a, _) => ValueListenableBuilder<B>(
+          valueListenable: second,
+          builder: (context, b, _) => builder(context, a, b),
+        ),
+      );
+}
+
 // ─── Map Loading Placeholder (Lottie) ────────────────────────────────────────
-//
-//  Shown while position == null (i.e. GPS not yet acquired or map still loading).
-//
 
 class _MapLoadingPlaceholder extends StatelessWidget {
   final bool isSimulation;
