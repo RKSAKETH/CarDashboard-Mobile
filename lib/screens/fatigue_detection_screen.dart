@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../services/fatigue_detection_service.dart';
 import '../widgets/ambient_light_overlay.dart';
 
@@ -21,11 +22,16 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
   // ── Service ─────────────────────────────────────────────────────────────────
   final FatigueDetectionService _service = FatigueDetectionService();
 
-  // ── States ──────────────────────────────────────────────────────────────────
-  bool _initialising = true;
-  bool _initFailed   = false;
-  bool _isFatigued   = false;
-  int  _alarmCount   = 0;
+  // ── Notifiers for Granular Rebuilds ──────────────────────────────────────────
+  final ValueNotifier<bool> _initialisingNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _initFailedNotifier   = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isFatiguedNotifier   = ValueNotifier<bool>(false);
+  final ValueNotifier<int>  _alarmCountNotifier   = ValueNotifier<int>(0);
+  final ValueNotifier<String> _statusTextNotifier = ValueNotifier<String>('Initialising camera…');
+
+  // Helpers to use local variables like before for simplicity in logic
+  bool get _isFatigued => _isFatiguedNotifier.value;
+  set _isFatigued(bool v) => _isFatiguedNotifier.value = v;
 
   // ── Animations ──────────────────────────────────────────────────────────────
   late AnimationController _pulseController;
@@ -33,14 +39,10 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
   late AnimationController _alertController;
   late Animation<double>   _alertAnim;
 
-  // ── Status text ─────────────────────────────────────────────────────────────
-  String _statusText = 'Initialising camera…';
-
   @override
   void initState() {
     super.initState();
 
-    // Pulse ring when alert fires
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -49,7 +51,6 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Red flash overlay
     _alertController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -66,20 +67,16 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
     if (!mounted) return;
 
     if (!ok) {
-      setState(() {
-        _initialising = false;
-        _initFailed   = true;
-        _statusText   = 'Camera unavailable';
-      });
+      _initialisingNotifier.value = false;
+      _initFailedNotifier.value   = true;
+      _statusTextNotifier.value   = 'Camera unavailable';
       return;
     }
 
     _service.onFatigueChanged = (fatigued) {
       if (!mounted) return;
-      setState(() {
-        _isFatigued  = fatigued;
-        _statusText  = fatigued ? 'FATIGUE DETECTED!' : 'Eyes on road ✓';
-      });
+      _isFatigued = fatigued;
+      _statusTextNotifier.value = fatigued ? 'FATIGUE DETECTED!' : 'Eyes on road ✓';
 
       if (fatigued) {
         _pulseController.repeat(reverse: true);
@@ -93,16 +90,14 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
 
     _service.onAlarmTriggered = () {
       if (!mounted) return;
-      setState(() => _alarmCount++);
+      _alarmCountNotifier.value++;
     };
 
     await _service.start();
 
     if (mounted) {
-      setState(() {
-        _initialising = false;
-        _statusText   = 'Monitoring — eyes on road';
-      });
+      _initialisingNotifier.value = false;
+      _statusTextNotifier.value   = 'Monitoring — eyes on road';
     }
   }
 
@@ -110,6 +105,11 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
   void dispose() {
     _pulseController.dispose();
     _alertController.dispose();
+    _initialisingNotifier.dispose();
+    _initFailedNotifier.dispose();
+    _isFatiguedNotifier.dispose();
+    _alarmCountNotifier.dispose();
+    _statusTextNotifier.dispose();
     _service.dispose();
     super.dispose();
   }
@@ -127,12 +127,19 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
           fit: StackFit.expand,
           children: [
             // ── Camera Preview ───────────────────────────────────────────────
-            _buildCameraLayer(),
+            // Wrapped in RepaintBoundary to isolate camera feed from HUD overlays
+            RepaintBoundary(
+              child: ValueListenableBuilder2<bool, bool>(
+                _initialisingNotifier,
+                _initFailedNotifier,
+                (_, init, failed) => _buildCameraLayer(init, failed),
+              ),
+            ),
 
             // ── Red alarm flash overlay ──────────────────────────────────────
             AnimatedBuilder(
               animation: _alertAnim,
-              builder: (_, child) => _alertAnim.value > 0
+              builder: (_, __) => _alertAnim.value > 0
                   ? Container(
                       color: Colors.red.withAlpha((_alertAnim.value * 120).toInt()),
                     )
@@ -151,11 +158,11 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
   }
 
   // ── Camera Layer ──────────────────────────────────────────────────────────────
-  Widget _buildCameraLayer() {
-    if (_initialising) {
+  Widget _buildCameraLayer(bool initialising, bool initFailed) {
+    if (initialising) {
       return _buildLoadingPlaceholder();
     }
-    if (_initFailed) {
+    if (initFailed) {
       return _buildFailedPlaceholder();
     }
     final ctrl = _service.cameraController;
@@ -195,15 +202,15 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
   Widget _buildFailedPlaceholder() => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.no_photography, color: Colors.white38, size: 72),
-            const SizedBox(height: 16),
-            const Text(
+          children: const [
+            Icon(Icons.no_photography, color: Colors.white38, size: 72),
+            SizedBox(height: 16),
+            Text(
               'Camera unavailable',
               style: TextStyle(color: Colors.white60, fontSize: 16),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Grant camera permission in app settings.',
               style: TextStyle(color: Colors.white38, fontSize: 13),
               textAlign: TextAlign.center,
@@ -227,7 +234,6 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
         ),
         child: Row(
           children: [
-            // Back button
             GestureDetector(
               onTap: () => Navigator.of(context).pop(),
               child: Container(
@@ -262,39 +268,42 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(
+                const Text(
                   'AI Fatigue Detection  •  ML Kit',
                   style: TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ],
             ),
             const Spacer(),
-            // Alarm count badge
-            if (_alarmCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF1744).withAlpha(40),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFF1744)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: Color(0xFFFF1744), size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_alarmCount alert${_alarmCount > 1 ? "s" : ""}',
-                      style: const TextStyle(
-                        color: Color(0xFFFF1744),
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+            ValueListenableBuilder<int>(
+              valueListenable: _alarmCountNotifier,
+              builder: (_, count, __) => count > 0
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF1744).withAlpha(40),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFFF1744)),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              color: Color(0xFFFF1744), size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$count alert${count > 1 ? "s" : ""}',
+                            style: const TextStyle(
+                              color: Color(0xFFFF1744),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
@@ -318,51 +327,54 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             // Status indicator (animated pulse ring)
-            AnimatedBuilder(
-              animation: _pulseAnim,
-              builder: (_, child) => Transform.scale(
-                scale: _isFatigued ? _pulseAnim.value : 1.0,
-                child: child,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _isFatigued
-                        ? const Color(0xFFFF1744)
-                        : const Color(0xFF00C853),
-                    width: 3,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (_isFatigued
-                              ? const Color(0xFFFF1744)
-                              : const Color(0xFF00C853))
-                          .withAlpha(100),
-                      blurRadius: 20,
-                      spreadRadius: 4,
-                    ),
-                  ],
+            ValueListenableBuilder<bool>(
+              valueListenable: _isFatiguedNotifier,
+              builder: (_, fatigued, __) => AnimatedBuilder(
+                animation: _pulseAnim,
+                builder: (_, child) => Transform.scale(
+                  scale: fatigued ? _pulseAnim.value : 1.0,
+                  child: child,
                 ),
                 child: Container(
-                  width: 64,
-                  height: 64,
+                  padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: (_isFatigued
-                            ? const Color(0xFFFF1744)
-                            : const Color(0xFF00C853))
-                        .withAlpha(30),
+                    border: Border.all(
+                      color: fatigued
+                          ? const Color(0xFFFF1744)
+                          : const Color(0xFF00C853),
+                      width: 3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (fatigued
+                                ? const Color(0xFFFF1744)
+                                : const Color(0xFF00C853))
+                            .withAlpha(100),
+                        blurRadius: 20,
+                        spreadRadius: 4,
+                      ),
+                    ],
                   ),
-                  child: Icon(
-                    _isFatigued
-                        ? Icons.warning_amber_rounded
-                        : Icons.remove_red_eye_rounded,
-                    color: _isFatigued
-                        ? const Color(0xFFFF1744)
-                        : const Color(0xFF00C853),
-                    size: 34,
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (fatigued
+                              ? const Color(0xFFFF1744)
+                              : const Color(0xFF00C853))
+                          .withAlpha(30),
+                    ),
+                    child: Icon(
+                      fatigued
+                          ? Icons.warning_amber_rounded
+                          : Icons.remove_red_eye_rounded,
+                      color: fatigued
+                          ? const Color(0xFFFF1744)
+                          : const Color(0xFF00C853),
+                      size: 34,
+                    ),
                   ),
                 ),
               ),
@@ -371,21 +383,25 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
             const SizedBox(height: 14),
 
             // Status text
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Text(
-                key: ValueKey(_statusText),
-                _statusText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _isFatigued
-                      ? const Color(0xFFFF1744)
-                      : Colors.white,
-                  fontSize: _isFatigued ? 22 : 16,
-                  fontWeight: _isFatigued
-                      ? FontWeight.w900
-                      : FontWeight.w500,
-                  letterSpacing: _isFatigued ? 1.5 : 0,
+            ValueListenableBuilder2<String, bool>(
+              _statusTextNotifier,
+              _isFatiguedNotifier,
+              (_, status, fatigued) => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Text(
+                  key: ValueKey(status),
+                  status,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: fatigued
+                        ? const Color(0xFFFF1744)
+                        : Colors.white,
+                    fontSize: fatigued ? 22 : 16,
+                    fontWeight: fatigued
+                        ? FontWeight.w900
+                        : FontWeight.w500,
+                    letterSpacing: fatigued ? 1.5 : 0,
+                  ),
                 ),
               ),
             ),
@@ -393,11 +409,14 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
             const SizedBox(height: 8),
 
             // Sub text hint
-            Text(
-              _isFatigued
-                  ? 'Eyes closed or head turned away'
-                  : 'Keep your eyes on the road',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ValueListenableBuilder<bool>(
+              valueListenable: _isFatiguedNotifier,
+              builder: (_, fatigued, __) => Text(
+                fatigued
+                    ? 'Eyes closed or head turned away'
+                    : 'Keep your eyes on the road',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
             ),
 
             const SizedBox(height: 20),
@@ -453,4 +472,29 @@ class _FatigueDetectionScreenState extends State<FatigueDetectionScreen>
       ),
     );
   }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+class ValueListenableBuilder2<A, B> extends StatelessWidget {
+  const ValueListenableBuilder2(
+    this.first,
+    this.second,
+    this.builder, {
+    super.key,
+    this.child,
+  });
+
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final Widget Function(BuildContext context, A a, B b) builder;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<A>(
+        valueListenable: first,
+        builder: (context, a, _) => ValueListenableBuilder<B>(
+          valueListenable: second,
+          builder: (context, b, _) => builder(context, a, b),
+        ),
+      );
 }

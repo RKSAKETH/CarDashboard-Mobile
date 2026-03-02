@@ -9,7 +9,7 @@ class AppLocalizationsTe extends AppLocalizations {
   AppLocalizationsTe([String locale = 'te']) : super(locale);
 
   @override
-  String get appTitle => 'స్పీడోమీటర్';
+  String get appTitle => 'వెలోరా డ్రైవ్';
 
   @override
   String get settings => 'సెట్టింగులు';

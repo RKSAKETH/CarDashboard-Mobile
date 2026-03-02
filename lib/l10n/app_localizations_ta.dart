@@ -9,7 +9,7 @@ class AppLocalizationsTa extends AppLocalizations {
   AppLocalizationsTa([String locale = 'ta']) : super(locale);
 
   @override
-  String get appTitle => 'ஸ்பீடோமீட்டர்';
+  String get appTitle => 'வெலோரா டிரைவ்';
 
   @override
   String get settings => 'அமைப்புகள்';

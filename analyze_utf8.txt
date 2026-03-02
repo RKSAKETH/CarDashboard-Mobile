@@ -40,12 +40,12 @@ Try `flutter pub outdated` for more information.
 Analyzing CarDashboard-Mobile...                                
 
    info - The private field _vehicleType could be 'final' - lib\screens\home_screen.dart:38:15 - prefer_final_fields
-   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:787:49 - unnecessary_underscores
-  error - Expected to find ']' - lib\screens\home_screen.dart:872:17 - expected_token
-  error - Expected to find ')' - lib\screens\home_screen.dart:878:7 - expected_token
-   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1710:79 - unnecessary_string_interpolations
-   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1712:79 - unnecessary_string_interpolations
-   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1714:78 - unnecessary_string_interpolations
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:776:49 - unnecessary_underscores
+   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1672:79 - unnecessary_string_interpolations
+   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1674:79 - unnecessary_string_interpolations
+   info - Unnecessary use of string interpolation - lib\screens\home_screen.dart:1676:78 - unnecessary_string_interpolations
+  error - Too many positional arguments: 0 expected, but 1 found - lib\screens\home_screen.dart:1748:31 - extra_positional_arguments
+  error - Undefined name 'accent' - lib\screens\home_screen.dart:1788:23 - undefined_identifier
 warning - Unused import: '../services/ambient_light_service.dart' - lib\screens\intro_screen.dart:6:8 - unused_import
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:109:43 - deprecated_member_use
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:126:65 - deprecated_member_use
@@ -55,10 +55,8 @@ warning - Unused import: '../services/ambient_light_service.dart' - lib\screens\
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:352:47 - deprecated_member_use
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:362:51 - deprecated_member_use
    info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:394:49 - deprecated_member_use
-  error - Expected to find ')' - lib\screens\profile_screen.dart:228:10 - expected_token
-warning - The value of the local variable 'stats' isn't used - lib\screens\profile_screen.dart:404:15 - unused_local_variable
-  error - Expected to find ')' - lib\screens\profile_screen.dart:459:10 - expected_token
-warning - The declaration '_formatDate' isn't referenced - lib\screens\profile_screen.dart:634:10 - unused_element
+warning - The value of the local variable 'stats' isn't used - lib\screens\profile_screen.dart:398:15 - unused_local_variable
+warning - The declaration '_formatDate' isn't referenced - lib\screens\profile_screen.dart:613:10 - unused_element
    info - Don't invoke 'print' in production code - lib\services\auth_service.dart:95:7 - avoid_print
    info - Don't invoke 'print' in production code - lib\services\auth_service.dart:100:7 - avoid_print
    info - Don't invoke 'print' in production code - lib\services\auth_service.dart:102:10 - avoid_print
@@ -82,9 +80,8 @@ warning - Unused import: 'package:firebase_auth/firebase_auth.dart' - lib\servic
    info - Don't invoke 'print' in production code - lib\services\location_service.dart:36:11 - avoid_print
    info - Don't invoke 'print' in production code - lib\services\location_service.dart:40:7 - avoid_print
    info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:148:23 - deprecated_member_use
-  error - Undefined name 'ImageFilter' - lib\widgets\app_drawer.dart:571:25 - undefined_identifier
-   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:589:25 - deprecated_member_use
-   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:602:25 - deprecated_member_use
    info - Unnecessary use of multiple underscores - lib\widgets\map_view.dart:555:26 - unnecessary_underscores
-warning - Unused import: 'package:flutter/material.dart' - test\widget_test.dart:8:8 - unused_import
+  error - Too many positional arguments: 0 expected, but 1 found - lib\widgets\music_player_view.dart:312:7 - extra_positional_arguments_could_be_named
+  error - Expected to find ')' - lib\widgets\music_player_view.dart:357:5 - expected_token
+  error - The name 'SpeedometerApp' isn't a class - test\widget_test.dart:16:35 - creation_with_non_type
 

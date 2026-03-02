@@ -1,5 +1,7 @@
 ﻿import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/gauge_view.dart';
@@ -21,7 +23,7 @@ import '../services/incident_service.dart';
 
 // â”€â”€â”€ App Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-enum AppMode { dev, simulation }
+enum AppMode { dev, simulation, live }
 
 // â”€â”€â”€ HomeScreen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -33,73 +35,134 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  int _currentIndex = 0;
+  final ValueNotifier<int> _currentIndexNotifier = ValueNotifier<int>(0);
+  int get _currentIndex => _currentIndexNotifier.value;
+  set _currentIndex(int val) => _currentIndexNotifier.value = val;
+
   VehicleType _vehicleType = VehicleType.motorcycle;
-  bool _isTracking = false;
+
+  final ValueNotifier<bool> _isTrackingNotifier = ValueNotifier<bool>(false);
+  bool get _isTracking => _isTrackingNotifier.value;
+  set _isTracking(bool val) => _isTrackingNotifier.value = val;
 
   // â”€â”€ Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  AppMode _appMode = AppMode.dev;
+  final ValueNotifier<AppMode> _appModeNotifier = ValueNotifier<AppMode>(AppMode.dev);
+  AppMode get _appMode => _appModeNotifier.value;
+  set _appMode(AppMode val) => _appModeNotifier.value = val;
   bool get _isSimMode => _appMode == AppMode.simulation;
 
-  // â”€â”€ Speed tracking data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  double _currentSpeed = 0.0;
-  double _maxSpeed = 0.0;
-  double _totalDistance = 0.0;
-  double _avgSpeed = 0.0;
-  int _satellites = 0;
-  bool _hasGPS = false;
+  // ── Speed tracking data ───────────────────────────────────────────────────
+  final ValueNotifier<double> _currentSpeedNotifier = ValueNotifier<double>(0.0);
+  double get _currentSpeed => _currentSpeedNotifier.value;
+  set _currentSpeed(double val) => _currentSpeedNotifier.value = val;
 
-  // â”€â”€ Speed Limit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  int? _speedLimit;
-  bool _isOverLimit = false;
+  final ValueNotifier<double> _maxSpeedNotifier = ValueNotifier<double>(0.0);
+  double get _maxSpeed => _maxSpeedNotifier.value;
+  set _maxSpeed(double val) => _maxSpeedNotifier.value = val;
+
+  final ValueNotifier<double> _totalDistanceNotifier = ValueNotifier<double>(0.0);
+  double get _totalDistance => _totalDistanceNotifier.value;
+  set _totalDistance(double val) => _totalDistanceNotifier.value = val;
+
+  final ValueNotifier<double> _avgSpeedNotifier = ValueNotifier<double>(0.0);
+  double get _avgSpeed => _avgSpeedNotifier.value;
+  set _avgSpeed(double val) => _avgSpeedNotifier.value = val;
+
+  final ValueNotifier<int> _satellitesNotifier = ValueNotifier<int>(0);
+  int get _satellites => _satellitesNotifier.value;
+  set _satellites(int val) => _satellitesNotifier.value = val;
+
+  final ValueNotifier<bool> _hasGPSNotifier = ValueNotifier<bool>(false);
+  bool get _hasGPS => _hasGPSNotifier.value;
+  set _hasGPS(bool val) => _hasGPSNotifier.value = val;
+
+  // ── Speed Limit ────────────────────────────────────────────────────────────
+  final ValueNotifier<int?> _speedLimitNotifier = ValueNotifier<int?>(null);
+  int? get _speedLimit => _speedLimitNotifier.value;
+  set _speedLimit(int? val) => _speedLimitNotifier.value = val;
+
+  final ValueNotifier<bool> _isOverLimitNotifier = ValueNotifier<bool>(false);
+  bool get _isOverLimit => _isOverLimitNotifier.value;
+  set _isOverLimit(bool val) => _isOverLimitNotifier.value = val;
+
   Timer? _warningRepeatTimer;     // repeating TTS loop while over limit
   DateTime? _lastLimitFetch;
   Timer? _speedLimitTimer;
   late AnimationController _pulseRedController;
-  late Animation<double> _pulseRedAnim; // 0.0 â†’ 1.0 (vignette opacity)
+  late Animation<double> _pulseRedAnim; // 0.0 → 1.0 (vignette opacity)
 
-  // â”€â”€ Timer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Duration _elapsed = Duration.zero;
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  final ValueNotifier<Duration> _elapsedNotifier = ValueNotifier<Duration>(Duration.zero);
+  Duration get _elapsed => _elapsedNotifier.value;
+  set _elapsed(Duration val) => _elapsedNotifier.value = val;
+
   Timer? _timer;
 
-  // â”€â”€ Services â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Services ───────────────────────────────────────────────────────────────
   final LocationService _locationService = LocationService();
   final HistoryService _historyService = HistoryService();
   final VoiceAssistantService _voice = VoiceAssistantService();
   final SpeedLimitService _speedLimitService = SpeedLimitService();
   final SimulationService _simService = SimulationService();
 
-  // â”€â”€ Location â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Position? _currentPosition;
+  // ── Location ───────────────────────────────────────────────────────────────
+  final ValueNotifier<Position?> _currentPositionNotifier = ValueNotifier<Position?>(null);
+  Position? get _currentPosition => _currentPositionNotifier.value;
+  set _currentPosition(Position? val) => _currentPositionNotifier.value = val;
 
   // â”€â”€ Voice state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  bool _voiceReady = false;
-  String _voiceStatus = 'Initialisingâ€¦';
+  final ValueNotifier<bool> _voiceReadyNotifier = ValueNotifier<bool>(false);
+  bool get _voiceReady => _voiceReadyNotifier.value;
+  set _voiceReady(bool val) => _voiceReadyNotifier.value = val;
+
+  final ValueNotifier<String> _voiceStatusNotifier = ValueNotifier<String>('Initialisingâ€¦');
+  String get _voiceStatus => _voiceStatusNotifier.value;
+  set _voiceStatus(String val) => _voiceStatusNotifier.value = val;
 
   // â”€â”€ Active route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  RouteInfo? _activeRoute;
+  final ValueNotifier<RouteInfo?> _activeRouteNotifier = ValueNotifier<RouteInfo?>(null);
+  RouteInfo? get _activeRoute => _activeRouteNotifier.value;
+  set _activeRoute(RouteInfo? val) => _activeRouteNotifier.value = val;
 
   // â”€â”€ Simulation speed slider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  double _simSpeedKmh = 30.0;
+  final ValueNotifier<double> _simSpeedKmhNotifier = ValueNotifier<double>(30.0);
+  double get _simSpeedKmh => _simSpeedKmhNotifier.value;
+  set _simSpeedKmh(double val) => _simSpeedKmhNotifier.value = val;
 
   // â”€â”€ Simulation ongoing flag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  bool _simRunning = false;
+  final ValueNotifier<bool> _simRunningNotifier = ValueNotifier<bool>(false);
+  bool get _simRunning => _simRunningNotifier.value;
+  set _simRunning(bool val) => _simRunningNotifier.value = val;
 
-  // â”€â”€ Draggable bottom panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  static const double _panelFull = 160.0;  // stats + buttons
-  static const double _panelMid  =  76.0;  // buttons only
-  static const double _panelMin  =  28.0;  // handle only
-  double _bottomPanelHeight = 160.0;
+  // ── Draggable bottom panel ──────────────────────────────────────────
+  static const double _panelFull = 160.0;
+  static const double _panelMid  =  76.0;
+  static const double _panelMin  =  28.0;
+  final ValueNotifier<double> _bottomPanelHeightNotifier = ValueNotifier<double>(160.0);
+  double get _bottomPanelHeight => _bottomPanelHeightNotifier.value;
+  set _bottomPanelHeight(double val) => _bottomPanelHeightNotifier.value = val;
 
-  // â”€â”€ Draggable sim-speed slider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  Offset _simSliderOffset = const Offset(16, 140);
-  bool _simSliderMinimized = false;
+  // ── Draggable sim-speed slider ──────────────────────────────────────────
+  final ValueNotifier<Offset> _simSliderOffsetNotifier = ValueNotifier<Offset>(const Offset(16, 140));
+  Offset get _simSliderOffset => _simSliderOffsetNotifier.value;
+  set _simSliderOffset(Offset val) => _simSliderOffsetNotifier.value = val;
+  final ValueNotifier<bool> _simSliderMinimizedNotifier = ValueNotifier<bool>(false);
+  bool get _simSliderMinimized => _simSliderMinimizedNotifier.value;
+  set _simSliderMinimized(bool val) => _simSliderMinimizedNotifier.value = val;
 
   // â”€â”€ Place Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  bool _showSearch = false;
+  final ValueNotifier<bool> _showSearchNotifier = ValueNotifier<bool>(false);
+  bool get _showSearch => _showSearchNotifier.value;
+  set _showSearch(bool val) => _showSearchNotifier.value = val;
+
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, String>> _placeSuggestions = [];
-  bool _searchLoading = false;
+  final ValueNotifier<List<Map<String, String>>> _placeSuggestionsNotifier = ValueNotifier<List<Map<String, String>>>([]);
+  List<Map<String, String>> get _placeSuggestions => _placeSuggestionsNotifier.value;
+  set _placeSuggestions(List<Map<String, String>> val) => _placeSuggestionsNotifier.value = val;
+
+  final ValueNotifier<bool> _searchLoadingNotifier = ValueNotifier<bool>(false);
+  bool get _searchLoading => _searchLoadingNotifier.value;
+  set _searchLoading(bool val) => _searchLoadingNotifier.value = val;
   Timer? _searchDebounce;
 
   // â”€â”€ Mic pulse animation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -140,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Simulation service callback
     _simService.onRouteCompleted = () {
       if (mounted) {
-        setState(() => _simRunning = false);
+        _simRunning = false;
         _voice.speak('You have arrived at your destination!');
       }
     };
@@ -157,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final micStatus = await Permission.microphone.request();
     if (!micStatus.isGranted) {
       if (mounted) {
-        setState(() => _voiceStatus = 'Mic permission denied');
+        _voiceStatus = 'Mic permission denied';
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Microphone permission required for voice commands.'),
@@ -171,15 +234,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await _voice.init();
 
     _voice.onVoiceStatus = (status) {
-      if (mounted) setState(() => _voiceStatus = status);
+      if (mounted) _voiceStatus = status;
     };
 
     _voice.onRouteFound = (route) {
       if (mounted) {
-        setState(() {
-          _activeRoute = route;
-          _currentIndex = 1; // switch to map
-        });
+        _activeRoute = route;
+        _currentIndex = 1; // switch to map
         // In simulation mode, kick off the simulation automatically
         if (_isSimMode) {
           _startSimulation(route);
@@ -189,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _voice.onNavigationStopped = () {
       if (mounted) {
-        setState(() => _activeRoute = null);
+        _activeRoute = null;
         if (_isSimMode) _stopSimulation();
       }
     };
@@ -207,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     };
 
     _voice.onPageChange = (index) {
-      if (mounted) setState(() => _currentIndex = index);
+      if (mounted) _currentIndex = index;
     };
 
     _voice.onOpenSettings = () {
@@ -218,10 +279,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     };
 
     if (mounted) {
-      setState(() {
-        _voiceReady = true;
-        _voiceStatus = 'Tap mic to speak';
-      });
+      _voiceReady = true;
+      _voiceStatus = 'Tap mic to speak';
     }
   }
 
@@ -234,6 +293,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.dispose();
     _pulseController.dispose();
     _pulseRedController.dispose();
+    _currentSpeedNotifier.dispose();
+    _currentPositionNotifier.dispose();
+    _satellitesNotifier.dispose();
+    _hasGPSNotifier.dispose();
+    _isOverLimitNotifier.dispose();
+    _simSliderOffsetNotifier.dispose();
     _voice.dispose();
     _simService.dispose();
     IncidentService.instance.stop();
@@ -295,10 +360,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // position available for initial map centering
       if (_isSimMode) {
         if (mounted && !_simRunning) {
-          setState(() {
-            _currentPosition = position;
-            _hasGPS = true;
-          });
+          _currentPosition = position;
+          _hasGPS = true;
         }
         _voice.updatePosition(position);
         return;
@@ -311,16 +374,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _onPositionUpdate(Position position) {
     if (!mounted) return;
-    setState(() {
-      _currentPosition = position;
-      _currentSpeed = position.speed * 3.6;
-      _satellites = position.accuracy.toInt();
-      _hasGPS = true;
+    _currentPosition = position;
+    _currentSpeed = position.speed * 3.6;
+    _satellites = position.accuracy.toInt();
+    _hasGPS = true;
 
-      if (_isTracking && _currentSpeed > _maxSpeed) {
-        _maxSpeed = _currentSpeed;
-      }
-    });
+    if (_isTracking && _currentSpeed > _maxSpeed) {
+      _maxSpeed = _currentSpeed;
+    }
     _voice.updatePosition(position);
     _checkSpeedLimit(position.latitude, position.longitude);
   }
@@ -343,32 +404,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // SpeedLimitService.getSpeedLimit now always returns a value
     final limit = await _speedLimitService.getSpeedLimit(lat, lng);
     if (!mounted) return;
-    setState(() => _speedLimit = limit);
+    _speedLimit = limit;
     _evaluateSpeedExceedance();
   }
 
   void _evaluateSpeedExceedance() {
-    // No limit known yet â€” don't disturb existing state
+    // No limit known yet — don't disturb existing state
     if (_speedLimit == null) return;
 
     final over = _currentSpeed > _speedLimit!;
 
     if (over && !_isOverLimit) {
-      // â†’ Just crossed above the limit
-      setState(() => _isOverLimit = true);
+      // → Just crossed above the limit
+      _isOverLimit = true;
       _pulseRedController.repeat(reverse: true);
       _startWarningLoop();
     } else if (!over && _isOverLimit) {
-      // â†’ Back under the limit â€” stop all warnings
+      // → Back under the limit — stop all warnings
       _clearOverLimitState();
     }
-    // Already in the correct state â€” nothing to do
+    // Already in the correct state — nothing to do
   }
 
   /// Cancels all over-limit feedback and resets state.
   void _clearOverLimitState() {
     if (!mounted) return;
-    setState(() => _isOverLimit = false);
+    _isOverLimit = false;
     _pulseRedController.stop();
     _pulseRedController.reset();
     _warningRepeatTimer?.cancel();
@@ -403,12 +464,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _stopSimulation();
     }
 
-    setState(() {
-      _appMode = mode;
-      _currentSpeed = 0;
-      _isOverLimit = false;
-      _speedLimit = null;
-    });
+    _appMode = mode;
+    _currentSpeed = 0;
+    _isOverLimit = false;
+    _speedLimit = null;
 
     _warningRepeatTimer?.cancel();
     _warningRepeatTimer = null;
@@ -427,41 +486,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // If no real GPS, seed position from route start so the map renders
     if (_currentPosition == null) {
       final start = route.polylinePoints.first;
-      setState(() {
-        _currentPosition = Position(
-          latitude: start.latitude,
-          longitude: start.longitude,
-          timestamp: DateTime.now(),
-          accuracy: 1.0,
-          altitude: 0.0,
-          altitudeAccuracy: 0.0,
-          headingAccuracy: 0.0,
-          speed: 0.0,
-          speedAccuracy: 0.0,
-          heading: 0.0,
-        );
-        _hasGPS = true;
-      });
+      _currentPosition = Position(
+        latitude: start.latitude,
+        longitude: start.longitude,
+        timestamp: DateTime.now(),
+        accuracy: 1.0,
+        altitude: 0.0,
+        altitudeAccuracy: 0.0,
+        headingAccuracy: 0.0,
+        speed: 0.0,
+        speedAccuracy: 0.0,
+        heading: 0.0,
+      );
+      _hasGPS = true;
     }
 
     _simService.targetSpeedKmh = _simSpeedKmh;
     _simService.startRoute(route.polylinePoints, initialSpeedKmh: _simSpeedKmh);
-    setState(() => _simRunning = true);
+    _simRunning = true;
   }
 
   void _stopSimulation() {
     _simService.stop();
-    setState(() {
-      _simRunning = false;
-      _currentSpeed = 0;
-    });
+    _simRunning = false;
+    _currentSpeed = 0;
   }
 
   void _onSimSpeedChanged(double value) {
-    setState(() {
-      _simSpeedKmh = value;
-      if (_simRunning) _currentSpeed = value;
-    });
+    _simSpeedKmh = value;
+    if (_simRunning) _currentSpeed = value;
     _simService.targetSpeedKmh = value;
 
     if (_simRunning) {
@@ -484,17 +537,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   void _onPanelDrag(DragUpdateDetails d) {
-    setState(() {
-      _bottomPanelHeight =
-          (_bottomPanelHeight - d.delta.dy).clamp(_panelMin, _panelFull);
-    });
+    _bottomPanelHeight =
+        (_bottomPanelHeight - d.delta.dy).clamp(_panelMin, _panelFull);
   }
 
   void _onPanelDragEnd(DragEndDetails _) {
     const snaps = [_panelMin, _panelMid, _panelFull];
     final closest = snaps.reduce((a, b) =>
         (a - _bottomPanelHeight).abs() < (b - _bottomPanelHeight).abs() ? a : b);
-    setState(() => _bottomPanelHeight = closest);
+    _bottomPanelHeight = closest;
   }
 
   // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
@@ -503,20 +554,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _loadTotalDistance() async {
     final distance = await _historyService.getTotalDistance();
-    setState(() => _totalDistance = distance);
+    _totalDistance = distance;
   }
 
   void _toggleTracking() {
-    setState(() {
-      _isTracking = !_isTracking;
-      if (_isTracking) {
-        _startTimer();
-        _resetCurrentSession();
-      } else {
-        _stopTimer();
-        _saveSession();
-      }
-    });
+    _isTracking = !_isTracking;
+    if (_isTracking) {
+      _startTimer();
+      _resetCurrentSession();
+    } else {
+      _stopTimer();
+      _saveSession();
+    }
   }
 
   /// Smart handler for the main START/STOP button.
@@ -529,17 +578,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         // stops simulation, clears route, saves session, announces via TTS.
         _stopSimulation();
         _stopTimer();
-        setState(() {
-          _isTracking = false;
-          _activeRoute = null;
-        });
+        _isTracking = false;
+        _activeRoute = null;
         _saveSession();
         _voice.speak('Navigation stopped.');
       } else {
         // Start the journey
         _resetCurrentSession();
         _startTimer();
-        setState(() => _isTracking = true);
+        _isTracking = true;
         _startSimulation(_activeRoute!);
       }
     } else {
@@ -549,28 +596,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() {
-        _elapsed += const Duration(seconds: 1);
-        _updateAvgSpeed();
-      });
+      _elapsed += const Duration(seconds: 1);
+      _updateAvgSpeed();
     });
   }
 
   void _stopTimer() => _timer?.cancel();
 
   void _resetCurrentSession() {
-    setState(() {
-      _maxSpeed = 0.0;
-      _avgSpeed = 0.0;
-      _elapsed = Duration.zero;
-    });
+    _maxSpeed = 0.0;
+    _avgSpeed = 0.0;
+    _elapsed = Duration.zero;
   }
 
   void _updateAvgSpeed() {
     if (_elapsed.inSeconds > 0) {
-      setState(() {
-        _avgSpeed = (_totalDistance / _elapsed.inSeconds) * 3600;
-      });
+      _avgSpeed = (_totalDistance / _elapsed.inSeconds) * 3600;
     }
   }
 
@@ -608,7 +649,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _stopNavigation() {
     _voice.onNavigationStopped?.call();
-    setState(() => _activeRoute = null);
+    _activeRoute = null;
     if (_isSimMode) _stopSimulation();
     _voice.speak('Navigation stopped.');
   }
@@ -620,255 +661,328 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _onSearchChanged(String query) {
     _searchDebounce?.cancel();
     if (query.trim().isEmpty) {
-      setState(() => _placeSuggestions = []);
+      _placeSuggestions = [];
       return;
     }
     _searchDebounce = Timer(const Duration(milliseconds: 400), () async {
       if (!mounted) return;
-      setState(() => _searchLoading = true);
+      _searchLoading = true;
       final results = await _voice.fetchPlaceSuggestions(
         query,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
       );
-      if (mounted) setState(() { _placeSuggestions = results; _searchLoading = false; });
+      if (mounted) {
+        _placeSuggestions = results;
+        _searchLoading = false;
+      }
     });
   }
 
   void _selectSuggestion(String description) {
     _searchController.clear();
-    setState(() {
-      _showSearch = false;
-      _placeSuggestions = [];
-    });
+    _showSearch = false;
+    _placeSuggestions = [];
     _voice.navigateTo(description);
   }
 
   void _closeSearch() {
     _searchController.clear();
-    setState(() { _showSearch = false; _placeSuggestions = []; });
+    _showSearch = false;
+    _placeSuggestions = [];
   }
 
   Widget _buildSearchOverlay() {
     final lightMode = AmbientLightProvider.of(context);
-    final accent  = LightThemePalette.accent(lightMode);
+    final accent = LightThemePalette.accent(lightMode);
     final textPri = LightThemePalette.textPrimary(lightMode);
     final textSec = LightThemePalette.textSecondary(lightMode);
 
-    return Stack(
-      children: [
-        // â”€â”€ Search button (shown when search closed + no active route) â”€â”€â”€â”€â”€â”€â”€â”€
-        if (!_showSearch && _activeRoute == null)
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: () => setState(() => _showSearch = true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xEE1A1A2E),
+    return ValueListenableBuilder2<bool, RouteInfo?>(
+      _showSearchNotifier,
+      _activeRouteNotifier,
+      (context, showSearch, route) => Stack(
+        children: [
+          // ── Search button (shown when search closed + no active route) ──
+          if (!showSearch && route == null)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: GestureDetector(
+                onTap: () => _showSearch = true,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: accent.withAlpha(120), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withAlpha(50),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.search_rounded, color: accent, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Search destination',
-                      style: TextStyle(color: textSec, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-        // â”€â”€ Search panel (shown when _showSearch is true) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (_showSearch)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-                decoration: BoxDecoration(
-                  color: const Color(0xF51A1A2E),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: accent.withAlpha(120), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withAlpha(60),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // â”€â”€ Text field row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 8, 6),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A2E).withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(
+                            color: accent.withValues(alpha: 0.3), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.5),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.search_rounded, color: accent, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              autofocus: true,
-                              onChanged: _onSearchChanged,
-                              style: const TextStyle(color: Colors.white, fontSize: 15),
-                              cursorColor: accent,
-                              decoration: InputDecoration(
-                                hintText: 'Where do you want to go?',
-                                hintStyle: TextStyle(color: textSec, fontSize: 14),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ),
-                          if (_searchLoading)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: accent,
-                                ),
-                              ),
-                            ),
-                          IconButton(
-                            onPressed: _closeSearch,
-                            icon: Icon(Icons.close_rounded, color: textSec, size: 20),
-                            padding: const EdgeInsets.all(4),
-                            constraints: const BoxConstraints(),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Search destination',
+                            style: TextStyle(color: textSec, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
-
-                    // â”€â”€ Suggestions list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    if (_placeSuggestions.isNotEmpty) ...[
-                      Divider(height: 1, color: accent.withAlpha(40)),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 240),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          itemCount: _placeSuggestions.length,
-                          separatorBuilder: (_, __) =>
-                              Divider(height: 1, indent: 46, color: accent.withAlpha(20)),
-                          itemBuilder: (context, i) {
-                            final s = _placeSuggestions[i];
-                            final desc = s['description'] ?? '';
-                            // Split into main / secondary parts
-                            final parts = desc.split(',');
-                            final main = parts.first.trim();
-                            final secondary = parts.length > 1
-                                ? parts.sublist(1).join(',').trim()
-                                : '';
-                            return InkWell(
-                              onTap: () => _selectSuggestion(desc),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 10),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: BoxDecoration(
-                                        color: accent.withAlpha(25),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.place_rounded,
-                                        color: accent,
-                                        size: 18,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            main,
-                                            style: TextStyle(
-                                              color: textPri,
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (secondary.isNotEmpty) ...[
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              secondary,
-                                              style: TextStyle(
-                                                  color: textSec, fontSize: 11),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.north_west_rounded,
-                                      color: textSec,
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ] else if (!_searchLoading &&
-                        _searchController.text.trim().isNotEmpty) ...[
-                      Divider(height: 1, color: accent.withAlpha(40)),
-                      Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Text(
-                          'No results found. Try a different query.',
-                          style: TextStyle(color: textSec, fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+
+          // ── Search panel (shown when showSearch is true) ──────────────────
+          if (showSearch)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                color: Colors.transparent,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color:
+                              const Color(0xFF1E1F26).withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                              color: accent.withValues(alpha: 0.2),
+                              width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.15),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // ── Text field row ──────────────────────────────
+                            Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(14, 10, 8, 6),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.search_rounded,
+                                      color: accent, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      autofocus: true,
+                                      onChanged: _onSearchChanged,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 15),
+                                      cursorColor: accent,
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            'Where do you want to go?',
+                                        hintStyle: TextStyle(
+                                            color: textSec, fontSize: 14),
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                  ),
+                                  ValueListenableBuilder<bool>(
+                                    valueListenable: _searchLoadingNotifier,
+                                    builder: (_, loading, __) => loading
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 6),
+                                            child: SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: accent,
+                                              ),
+                                            ),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                  IconButton(
+                                    onPressed: _closeSearch,
+                                    icon: Icon(Icons.close_rounded,
+                                        color: textSec, size: 20),
+                                    padding: const EdgeInsets.all(4),
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // ── Suggestions list ──────────────────────────
+                            ValueListenableBuilder<List<Map<String, String>>>(
+                              valueListenable: _placeSuggestionsNotifier,
+                              builder: (_, suggestions, __) {
+                                if (suggestions.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+                                return Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Divider(
+                                        height: 1,
+                                        color: accent.withAlpha(40)),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(
+                                          maxHeight: 240),
+                                      child: ListView.separated(
+                                        shrinkWrap: true,
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                vertical: 4),
+                                        itemCount: suggestions.length,
+                                        separatorBuilder: (_, __) =>
+                                            Divider(
+                                                height: 1,
+                                                indent: 46,
+                                                color:
+                                                    accent.withAlpha(20)),
+                                        itemBuilder: (context, i) {
+                                          final s = suggestions[i];
+                                          final desc =
+                                              s['description'] ?? '';
+                                          final parts = desc.split(',');
+                                          final main =
+                                              parts.first.trim();
+                                          final secondary =
+                                              parts.length > 1
+                                                  ? parts
+                                                      .sublist(1)
+                                                      .join(',')
+                                                      .trim()
+                                                  : '';
+                                          return InkWell(
+                                            onTap: () =>
+                                                _selectSuggestion(desc),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 10),
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    width: 32,
+                                                    height: 32,
+                                                    decoration:
+                                                        BoxDecoration(
+                                                      color:
+                                                          accent.withAlpha(
+                                                              25),
+                                                      shape:
+                                                          BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.place_rounded,
+                                                      color: accent,
+                                                      size: 18,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          main,
+                                                          style: TextStyle(
+                                                            color: textPri,
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                          maxLines: 1,
+                                                          overflow:
+                                                              TextOverflow
+                                                                  .ellipsis,
+                                                        ),
+                                                        if (secondary
+                                                            .isNotEmpty) ...[
+                                                          const SizedBox(
+                                                              height: 2),
+                                                          Text(
+                                                            secondary,
+                                                            style: TextStyle(
+                                                                color:
+                                                                    textSec,
+                                                                fontSize:
+                                                                    11),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Icon(
+                                                    Icons.north_west_rounded,
+                                                    color: textSec,
+                                                    size: 14,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+  // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
   // â•‘  Build                                                                   â•‘
-  // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   @override
   Widget build(BuildContext context) {
@@ -934,14 +1048,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               builder: (_) => const HistoryScreen()),
                         ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.person, color: textPri),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ProfileScreen()),
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -951,69 +1057,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             // â”€â”€ Mode Toggle Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _buildModeToggle(bg, surface, accent, textPri, textSec),
 
-            // â”€â”€ Speed Limit Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            if (_speedLimit != null || _isOverLimit)
-              _buildSpeedLimitBanner(accent, textPri),
+            // ── Speed Limit Banner ────────────────────────────────
+            _buildSpeedLimitBanner(accent, textPri),
 
-            // â”€â”€ GPS + Voice Status Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── GPS + Voice Status Row ────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.gps_fixed,
-                    color: _hasGPS ? accent : Colors.grey,
-                    size: 14,
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _hasGPSNotifier,
+                    builder: (_, hasGPS, __) => Icon(Icons.gps_fixed, color: hasGPS ? accent : Colors.grey, size: 14),
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    _isSimMode
-                        ? 'SIM MODE  â€¢  ${_simRunning ? "Moving" : "Idle"}'
-                        : 'GPS: ${_hasGPS ? "Yes" : "No"}  ($_satellites sat)',
-                    style: TextStyle(color: textSec, fontSize: 12),
+                  ValueListenableBuilder2<bool, int>(
+                    _hasGPSNotifier,
+                    _satellitesNotifier,
+                    (context, hasGPS, sats) => ValueListenableBuilder2<AppMode, bool>(
+                      _appModeNotifier,
+                      _simRunningNotifier,
+                      (context, mode, simRunning) => Text(
+                        mode == AppMode.simulation
+                            ? 'SIM MODE  •  ${simRunning ? "Moving" : "Idle"}'
+                            : 'GPS: ${hasGPS ? "Yes" : "No"}  ($sats sat)',
+                        style: TextStyle(color: textSec, fontSize: 12),
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   // Voice status chip
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isListening
-                          ? accent.withAlpha(40)
-                          : surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isListening
-                            ? accent
-                            : accent.withAlpha(60),
+                  ValueListenableBuilder<String>(
+                    valueListenable: _voiceStatusNotifier,
+                    builder: (context, status, _) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status == 'Listening…' ? accent.withAlpha(40) : surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: status == 'Listening…' ? accent : accent.withAlpha(60)),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isListening
-                              ? Icons.mic
-                              : Icons.mic_none,
-                          size: 12,
-                          color: isListening ? accent : textSec,
-                        ),
-                        const SizedBox(width: 4),
-                        ConstrainedBox(
-                          constraints:
-                              const BoxConstraints(maxWidth: 160),
-                          child: Text(
-                            _voiceStatus,
-                            style: TextStyle(
-                              color:
-                                  isListening ? accent : textSec,
-                              fontSize: 11,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            status == 'Listening…' ? Icons.mic : Icons.mic_none,
+                            size: 12,
+                            color: status == 'Listening…' ? accent : textSec,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 160),
+                            child: Text(
+                              status,
+                              style: TextStyle(color: status == 'Listening…' ? accent : textSec, fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -1022,170 +1123,211 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
             const SizedBox(height: 8),
 
-            // â”€â”€ Main View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Main View ────────────────────────────────────────
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const sliderW = 290.0;
-                  // Approximate slider height: header~44 + slider~56 + labels~20
-                  final sliderH = _simSliderMinimized ? 48.0 : 120.0;
-                  final maxLeft = (constraints.maxWidth - sliderW).clamp(0.0, double.infinity);
-                  final maxTop  = (constraints.maxHeight - sliderH).clamp(0.0, double.infinity);
+              child: ValueListenableBuilder<int>(
+                valueListenable: _currentIndexNotifier,
+                builder: (context, idx, _) => LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxLeft = (constraints.maxWidth - 290.0).clamp(0.0, double.infinity);
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _simSliderMinimizedNotifier,
+                      builder: (context, minimized, _) {
+                        final h = minimized ? 48.0 : 120.0;
+                        final maxTop = (constraints.maxHeight - h).clamp(0.0, double.infinity);
+                        
+                        return Stack(
+                          children: [
+                            ValueListenableBuilder2<double, bool>(
+                              _currentSpeedNotifier,
+                              _isOverLimitNotifier,
+                              (context, _, __) => _buildSpeedWarningWrapper(_buildCurrentView()),
+                            ),
 
-                  return Stack(
-                    children: [
-                      // Speed-limit red pulse wrapper
-                      _buildSpeedWarningWrapper(_buildCurrentView()),
-
-                      // â”€â”€ Simulation Speed Slider (bounded, draggable) â”€â”€â”€â”€â”€â”€â”€â”€
-                      if (_isSimMode)
-                        Positioned(
-                          left: _simSliderOffset.dx.clamp(0.0, maxLeft),
-                          top: _simSliderOffset.dy.clamp(0.0, maxTop),
-                          child: GestureDetector(
-                            onPanUpdate: (d) => setState(() {
-                              _simSliderOffset = Offset(
-                                (_simSliderOffset.dx + d.delta.dx).clamp(0.0, maxLeft),
-                                (_simSliderOffset.dy + d.delta.dy).clamp(0.0, maxTop),
-                              );
-                            }),
-                            child: _buildSimSpeedSlider(accent, textPri, textSec),
-                          ),
-                        ),
-                    ],
-                  );
-                },
+                            ValueListenableBuilder<AppMode>(
+                              valueListenable: _appModeNotifier,
+                              builder: (context, mode, _) {
+                                if (mode != AppMode.simulation) return const SizedBox.shrink();
+                                return ValueListenableBuilder<Offset>(
+                                  valueListenable: _simSliderOffsetNotifier,
+                                  builder: (context, offset, _) => Positioned(
+                                    left: offset.dx.clamp(0.0, maxLeft),
+                                    top: offset.dy.clamp(0.0, maxTop),
+                                    child: GestureDetector(
+                                      onPanUpdate: (d) => _simSliderOffset = Offset(
+                                        (_simSliderOffset.dx + d.delta.dx).clamp(0.0, maxLeft),
+                                        (_simSliderOffset.dy + d.delta.dy).clamp(0.0, maxTop),
+                                      ),
+                                      child: _buildSimSpeedSlider(accent, textPri, textSec),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
 
-            // ── Bottom Stats / Speed Circle ──────────────────────
-            ((_isSimMode && _activeRoute != null && _simRunning) || (!_isSimMode && _isTracking))
-                ? Align(
-                    alignment: Alignment.bottomLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 16, bottom: 16),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          // Speed Circle
-                          GestureDetector(
-                            onTap: _onStartStopPressed, // Tap to stop
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF1C1C1E),
-                                border: Border.all(
-                                  color: _isOverLimit ? const Color(0xFFFF453A) : accent,
-                                  width: 3,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: (_isOverLimit ? const Color(0xFFFF453A) : accent).withAlpha(80),
-                                    blurRadius: 16,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _currentSpeed.toStringAsFixed(0),
-                                      style: TextStyle(
-                                        color: _isOverLimit ? const Color(0xFFFF453A) : Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.w800,
-                                        height: 1.0,
+            // ── Bottom UI Layer (Stats & Panel) ──────────────────
+            ValueListenableBuilder<int>(
+              valueListenable: _currentIndexNotifier,
+              builder: (context, idx, _) => ValueListenableBuilder<AppMode>(
+                valueListenable: _appModeNotifier,
+                builder: (context, mode, _) => ValueListenableBuilder2<bool, bool>(
+                  _simRunningNotifier,
+                  _isTrackingNotifier,
+                  (context, simRunning, isTracking) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Bottom Stats / Speed Circle
+                      Builder(builder: (context) {
+                        final active = (mode == AppMode.simulation && _activeRoute != null && simRunning) ||
+                                     (mode != AppMode.simulation && isTracking);
+                        if (!active) return const SizedBox.shrink();
+
+                        return Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 16, bottom: 16),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                // Speed Circle
+                                GestureDetector(
+                                  onTap: _onStartStopPressed,
+                                  child: ValueListenableBuilder2<double, bool>(
+                                    _currentSpeedNotifier,
+                                    _isOverLimitNotifier,
+                                    (context, speed, over) => Container(
+                                      width: 80, height: 80,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: const Color(0xFF1C1C1E),
+                                        border: Border.all(color: over ? const Color(0xFFFF453A) : accent, width: 3),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: over ? const Color(0xFFFF453A).withAlpha(120) : accent.withAlpha(100),
+                                            blurRadius: 16, spreadRadius: 2,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              speed.toStringAsFixed(0),
+                                              style: TextStyle(
+                                                color: over ? const Color(0xFFFF453A) : Colors.white,
+                                                fontSize: 32, fontWeight: FontWeight.w800, height: 1.0,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text('km/h', style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'km/h',
-                                      style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                                
+                                // Navigation Stats Pill
+                                ValueListenableBuilder<RouteInfo?>(
+                                  valueListenable: _activeRouteNotifier,
+                                  builder: (context, route, _) {
+                                    if (route == null) return const SizedBox.shrink();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(left: 12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xEE1C1C1E),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: accent.withAlpha(80)),
+                                          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.timer_outlined, color: accent, size: 14),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  route.durationText,
+                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Icon(Icons.route_outlined, color: accent, size: 14),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  route.distanceText,
+                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  'Reach at ${_getArrivalTime(route.durationSeconds)}',
+                                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
-                          
-                          // Navigation Stats Pill
-                          if (_activeRoute != null) ...[
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xEE1C1C1E),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: accent.withAlpha(80)),
-                                boxShadow: [
-                                  BoxShadow(color: Colors.black45, blurRadius: 8)
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.timer_outlined, color: accent, size: 14),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _activeRoute!.durationText,
-                                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Icon(Icons.route_outlined, color: accent, size: 14),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _activeRoute!.distanceText,
-                                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Reach at ${_getArrivalTime(_activeRoute!.durationSeconds)}',
-                                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                        );
+                      }),
+
+                      // Draggable Bottom Panel
+                      (idx == 0 || idx == 1)
+                        ? ValueListenableBuilder<double>(
+                            valueListenable: _bottomPanelHeightNotifier,
+                            builder: (context, height, _) => GestureDetector(
+                              onVerticalDragUpdate: _onPanelDrag,
+                              onVerticalDragEnd: _onPanelDragEnd,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOut,
+                                clipBehavior: Clip.hardEdge,
+                                height: height,
+                                color: bg,
+                                child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  )
-                : ((_currentIndex == 0 || _currentIndex == 1)
-                    ? GestureDetector(
-                        onVerticalDragUpdate: _onPanelDrag,
-                        onVerticalDragEnd: _onPanelDragEnd,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeOut,
-                          clipBehavior: Clip.hardEdge,
-                          height: _bottomPanelHeight,
-                          color: bg,
-                          child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
-                        ),
-                      )
-                    : const SizedBox.shrink()),
+                          )
+                        : const SizedBox.shrink(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
 
-            // â”€â”€ Bottom Navigation (premium floating-circle style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            _buildCustomNavBar(bg, accent, textSec),
+            // ── Bottom Navigation (premium floating-circle style) ────────
+            ValueListenableBuilder<int>(
+              valueListenable: _currentIndexNotifier,
+              builder: (context, idx, _) => _buildCustomNavBar(bg, accent, textSec),
+            ),
           ],
         ),
       ),
@@ -1196,101 +1338,84 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•‘  Mode Toggle                                                             â•‘
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-  Widget _buildModeToggle(
-    Color bg,
-    Color surface,
-    Color accent,
-    Color textPri,
-    Color textSec,
-  ) {
+  Widget _buildModeToggle(Color bg, Color surface, Color accent, Color textPri, Color textSec) {
     final l10n = AppLocalizations.of(context)!;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      color: bg,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          // Label
-          Icon(Icons.settings_suggest, size: 16, color: textSec),
-          const SizedBox(width: 6),
-          Text('${l10n.mode}:', style: TextStyle(color: textSec, fontSize: 12)),
-          const SizedBox(width: 8),
+    return ValueListenableBuilder<AppMode>(
+      valueListenable: _appModeNotifier,
+      builder: (context, currentMode, _) => AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        color: bg,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: [
+            // Label
+            Icon(Icons.settings_suggest, size: 16, color: textSec),
+            const SizedBox(width: 6),
+            Text('${l10n.mode}:', style: TextStyle(color: textSec, fontSize: 12)),
+            const SizedBox(width: 8),
 
-          // Toggle pill
-          Container(
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: accent.withAlpha(60)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _modeChip(
-                  l10n.dev, Icons.developer_mode,
-                  AppMode.dev, accent, textSec,
-                ),
-                _modeChip(
-                  l10n.simulation, Icons.play_circle_fill,
-                  AppMode.simulation, accent, textSec,
-                ),
-              ],
-            ),
-          ),
-
-          const Spacer(),
-
-          // Live speed indicator (shown only while simulation is running)
-          if (_isSimMode && _simRunning)
-            Row(children: [
-              const Icon(Icons.directions_car,
-                  size: 14, color: Color(0xFF00FF88)),
-              const SizedBox(width: 4),
-              Text(
-                '${_simSpeedKmh.toInt()} km/h',
-                style: const TextStyle(
-                    color: Color(0xFF00FF88),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold),
+            // Toggle pill
+            Container(
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: accent.withAlpha(60)),
               ),
-            ]),
-        ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _modeChip(l10n.dev, Icons.developer_mode, AppMode.dev, currentMode == AppMode.dev, accent, textSec),
+                  _modeChip(l10n.simulation, Icons.play_circle_fill, AppMode.simulation, currentMode == AppMode.simulation, accent, textSec),
+                  _modeChip('Live', Icons.navigation, AppMode.live, currentMode == AppMode.live, accent, textSec),
+                ],
+              ),
+            ),
+
+            const Spacer(),
+
+            // Live speed indicator (shown only while simulation is running)
+            if (currentMode == AppMode.simulation)
+              ValueListenableBuilder<bool>(
+                valueListenable: _simRunningNotifier,
+                builder: (context, simRunning, _) {
+                  if (!simRunning) return const SizedBox.shrink();
+                  return ValueListenableBuilder<double>(
+                    valueListenable: _simSpeedKmhNotifier,
+                    builder: (context, simSpeed, _) => Row(
+                      children: [
+                        const Icon(Icons.directions_car, size: 14, color: Color(0xFF00FF88)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${simSpeed.toInt()} km/h',
+                          style: const TextStyle(color: Color(0xFF00FF88), fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _modeChip(
-    String label,
-    IconData icon,
-    AppMode mode,
-    Color accent,
-    Color textSec,
-  ) {
-    final selected = _appMode == mode;
+  Widget _modeChip(String label, IconData icon, AppMode mode, bool selected, Color accent, Color textSec) {
     return GestureDetector(
       onTap: () => _switchMode(mode),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.all(3),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? accent : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
+        decoration: BoxDecoration(color: selected ? accent : Colors.transparent, borderRadius: BorderRadius.circular(20)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 13,
-                color: selected ? Colors.black : textSec),
+            Icon(icon, size: 13, color: selected ? Colors.black : textSec),
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(
-                color: selected ? Colors.black : textSec,
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-              ),
+              style: TextStyle(color: selected ? Colors.black : textSec, fontSize: 12, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
             ),
           ],
         ),
@@ -1303,89 +1428,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   Widget _buildSpeedLimitBanner(Color accent, Color textPri) {
-    final over = _isOverLimit;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: over
-            ? const Color(0xFFFF1744).withAlpha(30)
-            : const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: over ? const Color(0xFFFF1744) : accent.withAlpha(80),
-          width: over ? 2 : 1,
-        ),
-        boxShadow: over
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFFF1744).withAlpha(80),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                )
-              ]
-            : [],
-      ),
-      child: Row(
-        children: [
-          // Speed limit sign
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(
-                color: over ? const Color(0xFFFF1744) : Colors.red.shade700,
-                width: 3,
-              ),
+    return ValueListenableBuilder2<int?, bool>(
+      _speedLimitNotifier,
+      _isOverLimitNotifier,
+      (context, limit, over) {
+        if (limit == null && !over) return const SizedBox.shrink();
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: over ? const Color(0xFFFF1744).withAlpha(30) : const Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: over ? const Color(0xFFFF1744) : accent.withAlpha(80),
+              width: over ? 2 : 1,
             ),
-            child: Center(
-              child: Text(
-                _speedLimit?.toString() ?? '?',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: _speedLimit != null && _speedLimit! >= 100 ? 13 : 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            boxShadow: over ? [BoxShadow(color: const Color(0xFFFF1744).withAlpha(80), blurRadius: 12, spreadRadius: 2)] : [],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  over
-                      ? 'âš ï¸  Speed Limit Exceeded!'
-                      : 'Speed Limit: $_speedLimit km/h',
-                  style: TextStyle(
-                    color: over
-                        ? const Color(0xFFFF1744)
-                        : textPri,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: Colors.white,
+                  border: Border.all(color: over ? const Color(0xFFFF1744) : Colors.red.shade700, width: 3),
+                ),
+                child: Center(
+                  child: Text(
+                    limit?.toString() ?? '?',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: limit != null && limit >= 100 ? 13 : 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                if (over)
-                  Text(
-                    'Current: ${_currentSpeed.toInt()} km/h  Â·  Limit: $_speedLimit km/h',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 11),
-                  ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      over ? 'âš ï¸   Speed Limit Exceeded!' : 'Speed Limit: $limit km/h',
+                      style: TextStyle(
+                        color: over ? const Color(0xFFFF1744) : textPri,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (over)
+                      ValueListenableBuilder<double>(
+                        valueListenable: _currentSpeedNotifier,
+                        builder: (context, speed, _) => Text(
+                          'Current: ${speed.toInt()} km/h  Â·  Limit: $limit km/h',
+                          style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                over ? Icons.warning_amber_rounded : Icons.speed,
+                color: over ? const Color(0xFFFF1744) : accent,
+                size: 22,
+              ),
+            ],
           ),
-          Icon(
-            over ? Icons.warning_amber_rounded : Icons.speed,
-            color: over ? const Color(0xFFFF1744) : accent,
-            size: 22,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1396,23 +1510,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildSpeedWarningWrapper(Widget child) {
     return Stack(
       children: [
-        child,
-        // â”€â”€ Danger Vignette overlay (shown only when over limit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (_isOverLimit)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: AnimatedBuilder(
-                animation: _pulseRedAnim,
-                builder: (_, child) {
-                  return CustomPaint(
-                    painter: _VignettePainter(
-                      opacity: _pulseRedAnim.value,
-                    ),
-                  );
-                },
+        RepaintBoundary(child: child),
+        ValueListenableBuilder<bool>(
+          valueListenable: _isOverLimitNotifier,
+          builder: (context, over, _) {
+            if (!over) return const SizedBox.shrink();
+            return Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _pulseRedAnim,
+                  builder: (_, __) => CustomPaint(
+                    painter: _VignettePainter(opacity: _pulseRedAnim.value),
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
+        ),
       ],
     );
   }
@@ -1421,105 +1535,109 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•‘  Simulation Speed Slider                                                 â•‘
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-  Widget _buildSimSpeedSlider(
-      Color accent, Color textPri, Color textSec) {
+  Widget _buildSimSpeedSlider(Color accent, Color textPri, Color textSec) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: 290,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xEE1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withAlpha(80)),
-        boxShadow: [
-          BoxShadow(color: accent.withAlpha(40), blurRadius: 14)
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // â”€â”€ Header row (always visible) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          Row(
+    return RepaintBoundary(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _simSliderMinimizedNotifier,
+        builder: (context, minimized, _) => Container(
+          width: 290,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xEE1A1A2E),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: accent.withAlpha(80)),
+            boxShadow: [BoxShadow(color: accent.withAlpha(40), blurRadius: 14)],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.speed, color: Colors.white70, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                '${l10n.simulation} ${l10n.gauge}',
-                style: TextStyle(color: textSec, fontSize: 12),
+              // Header row
+              Row(
+                children: [
+                  const Icon(Icons.speed, color: Colors.white70, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${l10n.simulation} ${l10n.gauge}',
+                    style: TextStyle(color: textSec, fontSize: 12),
+                  ),
+                  const Spacer(),
+                  // Speed chip
+                  ValueListenableBuilder2<double, bool>(
+                    _simSpeedKmhNotifier,
+                    _isOverLimitNotifier,
+                    (context, simSpeed, over) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: over ? const Color(0xFFFF1744).withAlpha(40) : accent.withAlpha(30),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: over ? const Color(0xFFFF1744) : accent),
+                      ),
+                      child: Text(
+                        '${simSpeed.toInt()} km/h',
+                        style: TextStyle(
+                          color: over ? const Color(0xFFFF1744) : accent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Minimize toggle
+                  GestureDetector(
+                    onTap: () => _simSliderMinimized = !_simSliderMinimized,
+                    child: Icon(
+                      minimized ? Icons.expand_more_rounded : Icons.expand_less_rounded,
+                      color: textSec,
+                      size: 22,
+                    ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              // Speed chip
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _isOverLimit
-                      ? const Color(0xFFFF1744).withAlpha(40)
-                      : accent.withAlpha(30),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _isOverLimit ? const Color(0xFFFF1744) : accent,
+              // Slider + labels
+              if (!minimized) ...[
+                ValueListenableBuilder2<double, bool>(
+                  _simSpeedKmhNotifier,
+                  _isOverLimitNotifier,
+                  (context, simSpeed, over) => Column(
+                    children: [
+                      SliderTheme(
+                        data: SliderThemeData(
+                          trackHeight: 4,
+                          thumbColor: over ? const Color(0xFFFF1744) : accent,
+                          activeTrackColor: over ? const Color(0xFFFF1744) : accent,
+                          inactiveTrackColor: Colors.white12,
+                          overlayColor: (over ? const Color(0xFFFF1744) : accent).withAlpha(30),
+                        ),
+                        child: Slider(
+                          value: simSpeed,
+                          min: 0,
+                          max: 150,
+                          divisions: 150,
+                          onChanged: _onSimSpeedChanged,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('0', style: TextStyle(color: textSec, fontSize: 10)),
+                          ValueListenableBuilder<int?>(
+                            valueListenable: _speedLimitNotifier,
+                            builder: (context, limit, _) => limit != null
+                                ? Text('Limit: $limit km/h', style: const TextStyle(color: Colors.orangeAccent, fontSize: 10))
+                                : const SizedBox.shrink(),
+                          ),
+                          Text('150', style: TextStyle(color: textSec, fontSize: 10)),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                child: Text(
-                  '${_simSpeedKmh.toInt()} km/h',
-                  style: TextStyle(
-                    color: _isOverLimit ? const Color(0xFFFF1744) : accent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              // Minimize / expand toggle
-              GestureDetector(
-                onTap: () =>
-                    setState(() => _simSliderMinimized = !_simSliderMinimized),
-                child: Icon(
-                  _simSliderMinimized
-                      ? Icons.expand_more_rounded
-                      : Icons.expand_less_rounded,
-                  color: textSec,
-                  size: 22,
-                ),
-              ),
+              ],
             ],
           ),
-          // â”€â”€ Slider + labels (hidden when minimized) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          if (!_simSliderMinimized) ...[
-            SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 4,
-                thumbColor: _isOverLimit ? const Color(0xFFFF1744) : accent,
-                activeTrackColor:
-                    _isOverLimit ? const Color(0xFFFF1744) : accent,
-                inactiveTrackColor: Colors.white12,
-                overlayColor:
-                    (_isOverLimit ? const Color(0xFFFF1744) : accent)
-                        .withAlpha(30),
-              ),
-              child: Slider(
-                value: _simSpeedKmh,
-                min: 0,
-                max: 150,
-                divisions: 150,
-                onChanged: _onSimSpeedChanged,
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('0', style: TextStyle(color: textSec, fontSize: 10)),
-                if (_speedLimit != null)
-                  Text(
-                    'Limit: $_speedLimit km/h',
-                    style: const TextStyle(
-                        color: Colors.orangeAccent, fontSize: 10),
-                  ),
-                Text('150', style: TextStyle(color: textSec, fontSize: 10)),
-              ],
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -1529,40 +1647,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   Widget _buildCurrentView() {
+    Widget child;
     switch (_currentIndex) {
       case 0:
-        return GaugeView(
-          speed: _currentSpeed,
-          satellites: _satellites,
-          hasGPS: _hasGPS,
-          isOverLimit: _isOverLimit,
-          speedLimit: _speedLimit,
-        );
-      case 1:
-        return Stack(
-          children: [
-            MapView(
-              currentPosition: _currentPosition,
-              speed: _currentSpeed,
-              activeRoute: _activeRoute,
-              onStopNavigation: _stopNavigation,
-              speedLimit: _speedLimit,
-              isOverLimit: _isOverLimit,
-              isSimulation: _isSimMode,
+        child = ValueListenableBuilder2<double, bool>(
+          _currentSpeedNotifier,
+          _isOverLimitNotifier,
+          (context, speed, over) => ValueListenableBuilder2<int, bool>(
+            _satellitesNotifier,
+            _hasGPSNotifier,
+            (context, sats, hasGPS) => ValueListenableBuilder<int?>(
+              valueListenable: _speedLimitNotifier,
+              builder: (context, limit, _) => GaugeView(
+                key: const ValueKey(0),
+                speed: speed,
+                satellites: sats,
+                hasGPS: hasGPS,
+                isOverLimit: over,
+                speedLimit: limit,
+              ),
             ),
-            _buildSearchOverlay(),
-          ],
+          ),
         );
+        break;
+      case 1:
+        child = ValueListenableBuilder2<Position?, double>(
+          _currentPositionNotifier,
+          _currentSpeedNotifier,
+          (context, pos, speed) => ValueListenableBuilder2<bool, int?>(
+            _isOverLimitNotifier,
+            _speedLimitNotifier,
+            (context, over, limit) => ValueListenableBuilder<RouteInfo?>(
+              valueListenable: _activeRouteNotifier,
+              builder: (context, route, _) => Stack(
+                key: const ValueKey(1),
+                children: [
+                  MapView(
+                    currentPosition: pos,
+                    speed: speed,
+                    activeRoute: route,
+                    onStopNavigation: _stopNavigation,
+                    speedLimit: limit,
+                    isOverLimit: over,
+                    isSimulation: _isSimMode,
+                  ),
+                  _buildSearchOverlay(),
+                ],
+              ),
+            ),
+          ),
+        );
+        break;
       case 2:
-        return MusicPlayerView(
-          accent: const Color(0xFF00E5FF),
-          bg: const Color(0xFF0F0F13),
-          textPri: Colors.white,
-          textSec: Colors.white54,
+        child = ValueListenableBuilder2<double, bool>(
+          _currentSpeedNotifier,
+          _isOverLimitNotifier,
+          (context, speed, over) => MusicPlayerView(
+            key: const ValueKey(2),
+            accent: const Color(0xFF00C2FF),
+            bg: const Color(0xFF14151A),
+            textPri: Colors.white,
+            textSec: Colors.white54,
+            speed: speed,
+            isOverLimit: over,
+          ),
         );
+        break;
       default:
-        return const SizedBox();
+        child = const SizedBox(key: ValueKey(-1));
     }
+    
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.02, 0.0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
   }
 
   String _formatDuration(Duration duration) {
@@ -1622,128 +1794,137 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: accent.withAlpha(40)),
             ),
-            child: _activeRoute != null
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(flex: 2, child: _buildCompactStat(Icons.access_time_filled, _activeRoute!.durationText, 'ETA', const Color(0xFF00E5FF), textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(flex: 2, child: _buildCompactStat(Icons.route, _activeRoute!.distanceText, l10n.distance, const Color(0xFF00E5FF), textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+            child: ValueListenableBuilder<RouteInfo?>(
+              valueListenable: _activeRouteNotifier,
+              builder: (context, route, _) => ValueListenableBuilder2<Duration, double>(
+                _elapsedNotifier,
+                _totalDistanceNotifier,
+                (context, elapsed, distance) => ValueListenableBuilder2<double, double>(
+                  _avgSpeedNotifier,
+                  _maxSpeedNotifier,
+                  (context, avgSpeed, maxSpeed) => route != null
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Row(
+                            Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(elapsed), '', accent, textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.access_time_filled, route.durationText, 'ETA', const Color(0xFF00E5FF), textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.route, route.distanceText, l10n.distance, const Color(0xFF00E5FF), textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
                                 mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.flag_rounded, color: Color(0xFF00E5FF), size: 14),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _activeRoute!.destination,
-                                    style: TextStyle(color: textPri, fontSize: 12, fontWeight: FontWeight.bold),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.flag_rounded, color: Color(0xFF00E5FF), size: 14),
+                                        const SizedBox(width: 4),
+                                        Text(route.destination, style: TextStyle(color: textPri, fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1),
+                                      ],
+                                    ),
                                   ),
+                                  const SizedBox(height: 2),
+                                  Text('Dest', style: TextStyle(color: textSec, fontSize: 10)),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text('Dest', style: TextStyle(color: textSec, fontSize: 10)),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(elapsed), '', accent, textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.route, distance.toStringAsFixed(0), l10n.distance, accent, textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.speed, avgSpeed.toStringAsFixed(0), l10n.avg, accent, textPri, textSec)),
+                            Container(width: 1, height: 24, color: accent.withAlpha(40)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.bolt, maxSpeed.toStringAsFixed(0), l10n.max, accent, textPri, textSec)),
                           ],
                         ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(_elapsed), '', accent, textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(flex: 2, child: _buildCompactStat(Icons.route, '${_totalDistance.toStringAsFixed(0)}', l10n.distance, accent, textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(flex: 2, child: _buildCompactStat(Icons.speed, '${_avgSpeed.toStringAsFixed(0)}', l10n.avg, accent, textPri, textSec)),
-                      Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                      Expanded(flex: 2, child: _buildCompactStat(Icons.bolt, '${_maxSpeed.toStringAsFixed(0)}', l10n.max, accent, textPri, textSec)),
-                    ],
-                  ),
+                ),
+              ),
+            ),
           ),
           ], // end if (showStats)
 
           const SizedBox(height: 8),
 
           // START/STOP Button and Mic Button
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: _onStartStopPressed,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 400),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      // Red when journey is running, green when route ready to go, yellow otherwise
-                      color: (_isSimMode && _activeRoute != null)
-                          ? (_simRunning
-                              ? const Color(0xFFFF1744)
-                              : const Color(0xFF00C853))
-                          : (_isTracking ? const Color(0xFFFF1744) : accent),
-                      borderRadius: BorderRadius.circular(50),
-                      boxShadow: [
-                        BoxShadow(
-                          color: ((_isSimMode && _activeRoute != null)
-                                  ? (_simRunning
-                                      ? const Color(0xFFFF1744)
-                                      : const Color(0xFF00C853))
-                                  : (_isTracking
-                                      ? const Color(0xFFFF1744)
-                                      : accent))
-                              .withAlpha(80),
-                          blurRadius: 14,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          // Contextual label
-                          (_isSimMode && _activeRoute != null)
-                              ? (_simRunning ? l10n.stop : 'START JOURNEY')
-                              : (_isTracking ? l10n.stop : l10n.start),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+          ValueListenableBuilder<AppMode>(
+            valueListenable: _appModeNotifier,
+            builder: (context, mode, _) => ValueListenableBuilder<RouteInfo?>(
+              valueListenable: _activeRouteNotifier,
+              builder: (context, route, _) => ValueListenableBuilder2<bool, bool>(
+                _simRunningNotifier,
+                _isTrackingNotifier,
+                (context, simRunning, isTracking) => Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _onStartStopPressed,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 400),
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          decoration: BoxDecoration(
+                            color: (mode == AppMode.simulation && route != null)
+                                ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+                                : (isTracking ? const Color(0xFFFF3B3B) : accent),
+                            borderRadius: BorderRadius.circular(50),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ((mode == AppMode.simulation && route != null)
+                                        ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+                                        : (isTracking ? const Color(0xFFFF3B3B) : accent))
+                                    .withAlpha(80),
+                                blurRadius: 14,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            type: MaterialType.transparency,
+                            child: InkWell(
+                              onTap: _onStartStopPressed,
+                              borderRadius: BorderRadius.circular(50),
+                              splashColor: Colors.white24,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    (mode == AppMode.simulation && route != null)
+                                        ? (simRunning ? l10n.stop : 'START JOURNEY')
+                                        : (isTracking ? l10n.stop : l10n.start),
+                                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(
+                                    (mode == AppMode.simulation && route != null)
+                                        ? (simRunning ? Icons.stop_rounded : Icons.navigation_rounded)
+                                        : (isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                                    color: Colors.white,
+                                    size: 26,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          (_isSimMode && _activeRoute != null)
-                              ? (_simRunning
-                                  ? Icons.stop_rounded
-                                  : Icons.navigation_rounded)
-                              : (_isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded),
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    _buildMicButton(accent),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              _buildMicButton(),
-            ],
+            ),
           ),
         ],
       ),
@@ -1754,7 +1935,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•‘  Mic Button                                                              â•‘
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-  Widget _buildMicButton() {
+  Widget _buildMicButton(Color accent) {
     final isListening = _voice.isListening;
     return GestureDetector(
       onTap: _onMicPressed,
@@ -1774,15 +1955,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isListening
-                  ? [const Color(0xFF00C853), const Color(0xFF00897B)]
-                  : [const Color(0xFF2979FF), const Color(0xFF651FFF)],
+                  ? [const Color(0xFF00FF88), const Color(0xFF00C2FF)]
+                  : [const Color(0xFF1E1F26), const Color(0xFF18191E)],
             ),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
                 color: isListening
-                    ? const Color(0xFF00C853).withAlpha(120)
-                    : const Color(0xFF2979FF).withAlpha(100),
+                    ? const Color(0xFF00FF88).withAlpha(120)
+                    : accent.withAlpha(40),
                 blurRadius: 16,
                 spreadRadius: 4,
               ),
@@ -1853,7 +2034,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const ProfileScreen()));
     } else {
-      setState(() => _currentIndex = idx);
+      _currentIndex = idx;
     }
   }
 
@@ -1876,61 +2057,88 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             // Dark pill
             Positioned(
               bottom: 0, left: 0, right: 0, top: 14,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(36),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withAlpha(100),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(36),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14151A).withAlpha(180),
+                      borderRadius: BorderRadius.circular(36),
+                      border: Border.all(color: Colors.white.withAlpha(20), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(140),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                ),
+              ),
+            ),
+            // Sliding Indicator
+            Positioned(
+              left: 0, right: 0, bottom: 0, top: 0,
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment(-1.0 + (_currentIndex * 2.0 / 4), 0.0), // Maps index 0..4 to -1.0 .. 1.0
+                child: FractionallySizedBox(
+                  widthFactor: 1 / 5,
+                  child: Center(
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      margin: const EdgeInsets.only(top: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1F26),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.4),
+                            blurRadius: 16,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
             // Items
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: items.map((item) {
                 final (icon, label, idx) = item;
                 final selected = _currentIndex == idx;
-                return GestureDetector(
-                  onTap: () => _onNavTap(idx),
-                  behavior: HitTestBehavior.opaque,
-                  child: SizedBox(
-                    width: 58, height: 66,
-                    child: Center(
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => _onNavTap(idx),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      height: 66,
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: 2),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
+                        duration: const Duration(milliseconds: 250),
                         curve: Curves.easeOutCubic,
-                        width: selected ? 54 : 36,
-                        height: selected ? 54 : 36,
-                        decoration: selected
-                            ? BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withAlpha(120),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.white.withAlpha(40),
-                                    blurRadius: 6, spreadRadius: 1,
-                                  ),
-                                ],
-                              )
-                            : null,
-                        child: Icon(
-                          icon,
-                          color: selected
-                              ? const Color(0xFF1C1C1E)
-                              : Colors.white38,
-                          size: selected ? 26 : 21,
+                        transform: Matrix4.translationValues(0, selected ? -10 : -4, 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              icon,
+                              color: selected ? accent : Colors.white54,
+                              size: selected ? 26 : 22,
+                              shadows: selected ? [Shadow(color: accent.withValues(alpha: 0.6), blurRadius: 10)] : null,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -2023,4 +2231,50 @@ class _VignettePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_VignettePainter old) => old.opacity != opacity;
+}
+
+/// A utility to listen to two [ValueListenable]s simultaneously.
+class ValueListenableBuilder2<A, B> extends StatelessWidget {
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final Widget Function(BuildContext context, A a, B b) builder;
+
+  const ValueListenableBuilder2(this.first, this.second, this.builder, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<A>(
+      valueListenable: first,
+      builder: (context, a, _) {
+        return ValueListenableBuilder<B>(
+          valueListenable: second,
+          builder: (context, b, _) => builder(context, a, b),
+        );
+      },
+    );
+  }
+}
+
+/// A utility to listen to three [ValueListenable]s simultaneously.
+class ValueListenableBuilder3<A, B, C> extends StatelessWidget {
+  final ValueListenable<A> first;
+  final ValueListenable<B> second;
+  final ValueListenable<C> third;
+  final Widget Function(BuildContext context, A a, B b, C c) builder;
+
+  const ValueListenableBuilder3(this.first, this.second, this.third, this.builder, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<A>(
+      valueListenable: first,
+      builder: (context, a, _) {
+        return ValueListenableBuilder2<B, C>(
+          second,
+          third,
+          (context, b, c) => builder(context, a, b, c),
+        );
+      },
+    );
+  }
 }

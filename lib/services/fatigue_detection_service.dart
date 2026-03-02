@@ -108,11 +108,21 @@ class FatigueDetectionService {
   }
 
   // ── Frame processing ───────────────────────────────────────────────────────
+  int _frameCount = 0;
+  static const int _processEveryNFrames = 5; // Process ~1 of 5 frames (~6fps at 30fps input)
+  
   Future<void> _onFrame(CameraImage image) async {
     if (_isAnalysing || !_isRunning || _detector == null) return;
+    
+    // Throttle frame processing to save CPU/Battery
+    _frameCount++;
+    if (_frameCount % _processEveryNFrames != 0) return;
+    
     _isAnalysing = true;
 
     try {
+      // Offload the heavy image conversion to a background isolate if possible.
+      // For now, at least we throttle. 
       final inputImage = _cameraImageToInputImage(image);
       if (inputImage == null) return;
 
