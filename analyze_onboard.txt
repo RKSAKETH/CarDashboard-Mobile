@@ -1,0 +1,22 @@
+﻿Analyzing 2 items...                                            
+
+warning - Unused import: 'package:flutter_localizations/flutter_localizations.dart' - lib\main.dart:12:8 - unused_import
+   info - Unnecessary use of multiple underscores - lib\screens\onboarding_screen.dart:192:26 - unnecessary_underscores
+
+flutter : 2 issues found. 
+(ran in 15.2s)
+At line:1 char:1
++ flutter analyze lib/screens
+/onboarding_screen.dart 
+lib/main.dart --no ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (2 issue  
+  s found. (ran in 15.2s):   
+ String) [], RemoteExcept    
+ion
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 

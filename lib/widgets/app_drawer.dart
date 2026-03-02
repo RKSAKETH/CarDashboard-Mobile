@@ -18,8 +18,8 @@ class AppDrawer extends StatelessWidget {
 
   void _shareApp() {
     Share.share(
-      'Check out this amazing Speedometer app!',
-      subject: 'Speedometer App',
+      'Check out this amazing Velora Drive app!',
+      subject: 'Velora Drive',
     );
   }
 
@@ -75,7 +75,7 @@ class AppDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Speedometer',
+                        'Velora Drive',
                         style: TextStyle(
                           color: textPri,
                           fontSize: 20,
@@ -479,7 +479,7 @@ class AppDrawer extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         title: const Text(
-          'About Speedometer',
+          'About Velora Drive',
           style: TextStyle(color: Colors.white),
         ),
         content: const Column(
@@ -487,7 +487,7 @@ class AppDrawer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Speedometer GPS Speed Tracker',
+              'Velora Drive — Smart Dashboard',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -545,44 +545,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _ => 'English',
     };
 
+    final mode    = AmbientLightProvider.of(context);
+    final textPri = LightThemePalette.textPrimary(mode);
+    final textSec = LightThemePalette.textSecondary(mode);
+    final bg      = LightThemePalette.background(mode);
+    final accent  = LightThemePalette.accent(mode);
+
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
-        title: Text(l10n.settings),
+        backgroundColor: bg,
+        foregroundColor: textPri,
+        elevation: 0,
+        title: Text(l10n.settings, style: TextStyle(color: textPri)),
       ),
       body: ListView(
         children: [
           // ─── General ───────────────────────────────────────────────────
           _SectionHeader(title: l10n.general),
           SwitchListTile(
-            title: Text(l10n.keepScreenOn, style: const TextStyle(color: Colors.white)),
-            subtitle: const Text('Prevent screen from turning off', style: TextStyle(color: Colors.white70)),
+            tileColor: Colors.transparent,
+            title: Text(l10n.keepScreenOn, style: TextStyle(color: textPri)),
+            subtitle: Text('Prevent screen from turning off', style: TextStyle(color: textSec)),
             value: true,
             onChanged: (value) {},
-            activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
+            activeThumbColor: accent,
           ),
           SwitchListTile(
-            title: Text(l10n.soundEffects, style: const TextStyle(color: Colors.white)),
-            subtitle: const Text('Play sounds during tracking', style: TextStyle(color: Colors.white70)),
+            tileColor: Colors.transparent,
+            title: Text(l10n.soundEffects, style: TextStyle(color: textPri)),
+            subtitle: Text('Play sounds during tracking', style: TextStyle(color: textSec)),
             value: false,
             onChanged: (value) {},
-            activeThumbColor: LightThemePalette.accent(AmbientLightProvider.of(context)),
+            activeThumbColor: accent,
           ),
           ListTile(
-            title: Text(l10n.speedUnit, style: const TextStyle(color: Colors.white)),
-            subtitle: const Text('km/h', style: TextStyle(color: Colors.white70)),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            title: Text(l10n.speedUnit, style: TextStyle(color: textPri)),
+            subtitle: Text('km/h', style: TextStyle(color: textSec)),
+            trailing: Icon(Icons.chevron_right, color: textSec),
             onTap: () {},
           ),
           ListTile(
-            title: Text(l10n.distanceUnit, style: const TextStyle(color: Colors.white)),
-            subtitle: const Text('Kilometers', style: TextStyle(color: Colors.white70)),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            title: Text(l10n.distanceUnit, style: TextStyle(color: textPri)),
+            subtitle: Text('Kilometers', style: TextStyle(color: textSec)),
+            trailing: Icon(Icons.chevron_right, color: textSec),
             onTap: () {},
           ),
           ListTile(
-            title: Text(l10n.language, style: const TextStyle(color: Colors.white)),
-            subtitle: Text(localeName, style: const TextStyle(color: Colors.white70)),
-            trailing: const Icon(Icons.chevron_right, color: Colors.white70),
+            title: Text(l10n.language, style: TextStyle(color: textPri)),
+            subtitle: Text(localeName, style: TextStyle(color: textSec)),
+            trailing: Icon(Icons.chevron_right, color: textSec),
             onTap: () {
               const AppDrawer().showLanguageDialog(context);
             },
@@ -667,7 +679,10 @@ class _AmbientLightSettingsState extends State<_AmbientLightSettings> {
           // ── Manual Override ──
           Text(
             'Override Mode (for testing)',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+            style: TextStyle(
+              color: LightThemePalette.textSecondary(mode),
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 8),
           _OverrideSelector(
@@ -725,7 +740,10 @@ class _AmbientLightSettingsState extends State<_AmbientLightSettings> {
                 const SizedBox(height: 8),
                 Text(
                   '⟳  Hysteresis: transitions are debounced by 600 ms to prevent flicker when a shadow briefly passes over the sensor.',
-                  style: TextStyle(color: Colors.white38, fontSize: 11),
+                  style: TextStyle(
+                    color: LightThemePalette.textSecondary(mode).withAlpha(140),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),

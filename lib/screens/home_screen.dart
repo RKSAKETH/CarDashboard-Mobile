@@ -16,6 +16,7 @@ import '../services/speed_limit_service.dart';
 import '../services/simulation_service.dart';
 
 import 'profile_screen.dart';
+import 'fatigue_detection_screen.dart';
 import '../services/incident_service.dart';
 
 // â”€â”€â”€ App Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -729,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               controller: _searchController,
                               autofocus: true,
                               onChanged: _onSearchChanged,
-                              style: TextStyle(color: textPri, fontSize: 15),
+                              style: const TextStyle(color: Colors.white, fontSize: 15),
                               cursorColor: accent,
                               decoration: InputDecoration(
                                 hintText: 'Where do you want to go?',
@@ -881,6 +882,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final textSec = LightThemePalette.textSecondary(lightMode);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       drawer: const AppDrawer(),
       body: SafeArea(
         child: Column(
@@ -912,6 +914,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       const LuxIndicator(),
                       const SizedBox(width: 4),
+                      // ── Eyes-On-Road (Fatigue) button ─────────────────────
+                      Tooltip(
+                        message: 'Eyes-On-Road Monitor',
+                        child: IconButton(
+                          icon: Icon(Icons.remove_red_eye_rounded, color: textPri),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const FatigueDetectionScreen()),
+                          ),
+                        ),
+                      ),
                       IconButton(
                         icon: Icon(Icons.history, color: textPri),
                         onPressed: () => Navigator.push(

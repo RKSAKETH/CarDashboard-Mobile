@@ -1,0 +1,9 @@
+Analyzing 3 items...                                            
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\profile_screen.dart:86:47 - deprecated_member_use
+warning - The value of the local variable 'stats' isn't used - lib\screens\profile_screen.dart:381:15 - unused_local_variable
+warning - The declaration '_formatDate' isn't referenced - lib\screens\profile_screen.dart:558:10 - unused_element
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:148:23 - deprecated_member_use
+  error - Expected to find ']' - lib\widgets\music_player_view.dart:298:9 - expected_token
+  error - Expected to find ')' - lib\widgets\music_player_view.dart:300:6 - expected_token
+

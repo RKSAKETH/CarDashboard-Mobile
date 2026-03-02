@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/ambient_light_overlay.dart';
 
 /// Example screen demonstrating Firestore usage
 /// Shows user profile and trip statistics
@@ -13,24 +14,37 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final user = AuthService().currentUser;
+    final mode   = AmbientLightProvider.of(context);
+    final bg     = LightThemePalette.background(mode);
+    final textPri = LightThemePalette.textPrimary(mode);
+    final textSec = LightThemePalette.textSecondary(mode);
+    final accent  = LightThemePalette.accent(mode);
 
     if (user == null) {
       return Scaffold(
+        backgroundColor: bg,
         appBar: AppBar(
-          title: Text(l10n.profile),
+          backgroundColor: bg,
+          foregroundColor: textPri,
+          elevation: 0,
+          title: Text(l10n.profile, style: TextStyle(color: textPri)),
         ),
         body: Center(
-          child: Text(l10n.pleaseLogin),
+          child: Text(l10n.pleaseLogin, style: TextStyle(color: textPri)),
         ),
       );
     }
 
     return Scaffold(
+      backgroundColor: bg,
       appBar: AppBar(
-        title: Text(l10n.profile),
+        backgroundColor: bg,
+        foregroundColor: textPri,
+        elevation: 0,
+        title: Text(l10n.profile, style: TextStyle(color: textPri)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: Icon(Icons.logout, color: textPri),
             onPressed: () async {
               await AuthService().signOut();
             },
@@ -43,27 +57,27 @@ class ProfileScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // User Profile Card
-            _buildUserProfileCard(context, user.uid),
-            
+            _buildUserProfileCard(context, user.uid, textPri, textSec, bg, accent),
+
             const SizedBox(height: 24),
-            
+
             // Trip Statistics Card
-            _buildTripStatisticsCard(context, user.uid),
-            
+            _buildTripStatisticsCard(context, user.uid, textPri, textSec, bg, accent),
+
             const SizedBox(height: 24),
-            
+
             // Recent Trips
-            _buildRecentTrips(context, user.uid),
+            _buildRecentTrips(context, user.uid, textPri, textSec, bg, accent),
 
             const SizedBox(height: 32),
-            
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await AuthService().signOut();
                   if (context.mounted) {
-                    Navigator.pop(context); // Go back to login/home
+                    Navigator.pop(context);
                   }
                 },
                 icon: const Icon(Icons.logout),
@@ -82,14 +96,16 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildUserProfileCard(BuildContext context, String uid) {
+  Widget _buildUserProfileCard(BuildContext context, String uid,
+      Color textPri, Color textSec, Color bg, Color accent) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirestoreService().getUserProfileStream(uid),
       builder: (context, snapshot) {
         final l10n = AppLocalizations.of(context)!;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            child: Padding(
+          return Card(
+            color: bg,
+            child: const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
@@ -98,9 +114,11 @@ class ProfileScreen extends StatelessWidget {
 
         if (snapshot.hasError) {
           return Card(
+            color: bg,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Error: ${snapshot.error}'),
+              child: Text('Error: \${snapshot.error}',
+                  style: TextStyle(color: textPri)),
             ),
           );
         }
@@ -110,6 +128,7 @@ class ProfileScreen extends StatelessWidget {
         final email = userData?['email'] ?? 'No email';
 
         return Card(
+          color: bg,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -119,13 +138,13 @@ class ProfileScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 40,
                       backgroundColor: const Color(0xFF2A2A2A),
-                      backgroundImage: userData?['photoUrl'] != null && 
+                      backgroundImage: userData?['photoUrl'] != null &&
                                      userData!['photoUrl'].toString().isNotEmpty
                           ? NetworkImage(userData['photoUrl'])
                           : null,
-                      child: userData?['photoUrl'] == null || 
+                      child: userData?['photoUrl'] == null ||
                              userData!['photoUrl'].toString().isEmpty
-                          ? const Icon(Icons.person, size: 40, color: Color(0xFF00FF00))
+                          ? Icon(Icons.person, size: 40, color: accent)
                           : null,
                     ),
                     const SizedBox(width: 16),
@@ -138,49 +157,45 @@ class ProfileScreen extends StatelessWidget {
                               Flexible(
                                 child: Text(
                                   displayName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: textPri,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.edit, size: 18, color: Color(0xFF00FF00)),
-                                onPressed: () => _showEditNameDialog(context, displayName),
+                                icon: Icon(Icons.edit, size: 18, color: accent),
+                                onPressed: () =>
+                                    _showEditNameDialog(context, displayName),
                                 tooltip: 'Edit Name',
                               ),
                             ],
                           ),
                           Text(
                             email,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
+                            style: TextStyle(fontSize: 14, color: textSec),
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Member since: ${_formatDate(userData?['createdAt'])}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white54,
-                            ),
+                            'Member since: \${_formatDate(userData?[\'createdAt\'])}',
+                            style: TextStyle(fontSize: 12, color: textSec),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-                const Divider(height: 32, color: Colors.grey),
+                Divider(height: 32, color: textSec.withAlpha(60)),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     TextButton.icon(
                       onPressed: () => _showChangePasswordDialog(context),
-                      icon: const Icon(Icons.lock_reset, color: Colors.white),
-                      label: Text(l10n.changePassword, style: const TextStyle(color: Colors.white)),
+                      icon: Icon(Icons.lock_reset, color: textPri),
+                      label: Text(l10n.changePassword,
+                          style: TextStyle(color: textPri)),
                     ),
                   ],
                 ),
@@ -336,14 +351,16 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTripStatisticsCard(BuildContext context, String uid) {
+  Widget _buildTripStatisticsCard(BuildContext context, String uid,
+      Color textPri, Color textSec, Color bg, Color accent) {
     return FutureBuilder<Map<String, dynamic>>(
       future: FirestoreService().getTripStatistics(uid),
       builder: (context, snapshot) {
         final l10n = AppLocalizations.of(context)!;
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Card(
-            child: Padding(
+          return Card(
+            color: bg,
+            child: const Padding(
               padding: EdgeInsets.all(16),
               child: Center(child: CircularProgressIndicator()),
             ),
@@ -352,9 +369,11 @@ class ProfileScreen extends StatelessWidget {
 
         if (snapshot.hasError) {
           return Card(
+            color: bg,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Error: ${snapshot.error}'),
+              child: Text('Error: \${snapshot.error}',
+                  style: TextStyle(color: textPri)),
             ),
           );
         }
@@ -362,6 +381,7 @@ class ProfileScreen extends StatelessWidget {
         final stats = snapshot.data ?? {};
 
         return Card(
+          color: bg,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -369,10 +389,10 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 Text(
                   l10n.tripStatistics,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textPri,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -381,18 +401,21 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     _buildStatItem(
                       l10n.totalTrips,
-                      '${stats['totalTrips'] ?? 0}',
+                      '\${stats[\'totalTrips\'] ?? 0}',
                       Icons.route,
+                      textPri, textSec, accent,
                     ),
                     _buildStatItem(
                       l10n.distance,
-                      '${(stats['totalDistance'] ?? 0.0).toStringAsFixed(1)} km',
+                      '\${(stats[\'totalDistance\'] ?? 0.0).toStringAsFixed(1)} km',
                       Icons.straighten,
+                      textPri, textSec, accent,
                     ),
                     _buildStatItem(
                       l10n.max,
-                      '${(stats['maxSpeed'] ?? 0.0).toStringAsFixed(0)} km/h',
+                      '\${(stats[\'maxSpeed\'] ?? 0.0).toStringAsFixed(0)} km/h',
                       Icons.speed,
+                      textPri, textSec, accent,
                     ),
                   ],
                 ),
@@ -404,42 +427,42 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildStatItem(
+      String label, String value, IconData icon,
+      Color textPri, Color textSec, Color accent) {
     return Column(
       children: [
-        Icon(icon, color: const Color(0xFF00FF00), size: 32),
+        Icon(icon, color: accent, size: 32),
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textPri,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.white70,
-          ),
+          style: TextStyle(fontSize: 12, color: textSec),
         ),
       ],
     );
   }
 
-  Widget _buildRecentTrips(BuildContext context, String uid) {
+  Widget _buildRecentTrips(BuildContext context, String uid,
+      Color textPri, Color textSec, Color bg, Color accent) {
     final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           l10n.recentTrips,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textPri,
           ),
         ),
         const SizedBox(height: 12),
@@ -451,17 +474,19 @@ class ProfileScreen extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
+              return Text('Error: \${snapshot.error}',
+                  style: TextStyle(color: textPri));
             }
 
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return Card(
+                color: bg,
                 child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Center(
                     child: Text(
                       l10n.noTripsYet,
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: textSec),
                     ),
                   ),
                 ),
@@ -475,32 +500,32 @@ class ProfileScreen extends StatelessWidget {
               children: trips.map((doc) {
                 final trip = doc.data() as Map<String, dynamic>;
                 return Card(
+                  color: bg,
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF00FF00),
+                      backgroundColor: accent,
                       child: Icon(
                         _getVehicleIcon(trip['vehicleType']),
                         color: Colors.black,
                       ),
                     ),
                     title: Text(
-                      '${trip['distance']?.toStringAsFixed(2) ?? '0.00'} km',
-                      style: const TextStyle(
+                      '\${trip[\'distance\']?.toStringAsFixed(2) ?? \'0.00\'} km',
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textPri,
                       ),
                     ),
                     subtitle: Text(
-                      'Max: ${trip['maxSpeed']?.toStringAsFixed(0) ?? '0'} km/h • '
-                      'Avg: ${trip['avgSpeed']?.toStringAsFixed(0) ?? '0'} km/h\n'
-                      '${_formatDate(trip['timestamp'])}',
-                      style: const TextStyle(color: Colors.white70),
+                      'Max: \${trip[\'maxSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h \u2022 '
+                      'Avg: \${trip[\'avgSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h\n'
+                      '\${_formatDate(trip[\'timestamp\'])}',
+                      style: TextStyle(color: textSec),
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: () async {
-                        // Show confirmation dialog
                         final confirmed = await _showDeleteDialog(context);
                         if (confirmed == true) {
                           await FirestoreService().deleteTrip(doc.id);
