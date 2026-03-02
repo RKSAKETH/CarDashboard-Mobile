@@ -134,6 +134,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool get _simRunning => _simRunningNotifier.value;
   set _simRunning(bool val) => _simRunningNotifier.value = val;
 
+  // Journey started flag: false = preview state, true = active navigation
+  final ValueNotifier<bool> _isJourneyStartedNotifier = ValueNotifier<bool>(false);
+  bool get _isJourneyStarted => _isJourneyStartedNotifier.value;
+  set _isJourneyStarted(bool val) => _isJourneyStartedNotifier.value = val;
+
   // ── Draggable bottom panel ──────────────────────────────────────────
   static const double _panelFull = 160.0;
   static const double _panelMid  =  76.0;
@@ -204,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _simService.onRouteCompleted = () {
       if (mounted) {
         _simRunning = false;
+        _isJourneyStarted = false;
         _voice.speak('You have arrived at your destination!');
       }
     };
@@ -240,11 +246,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _voice.onRouteFound = (route) {
       if (mounted) {
         _activeRoute = route;
+        _isJourneyStarted = false; // Reset to preview state
         _currentIndex = 1; // switch to map
-        // In simulation mode, kick off the simulation automatically
-        if (_isSimMode) {
-          _startSimulation(route);
-        }
+        // Route is displayed but simulation waits for "Start Journey" press
       }
     };
 
@@ -299,6 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _hasGPSNotifier.dispose();
     _isOverLimitNotifier.dispose();
     _simSliderOffsetNotifier.dispose();
+    _isJourneyStartedNotifier.dispose();
     _voice.dispose();
     _simService.dispose();
     IncidentService.instance.stop();
@@ -509,6 +514,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _stopSimulation() {
     _simService.stop();
     _simRunning = false;
+    _isJourneyStarted = false;
     _currentSpeed = 0;
   }
 
@@ -573,8 +579,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// â€“ Otherwise: toggles the session tracking timer as usual.
   void _onStartStopPressed() {
     if (_isSimMode && _activeRoute != null) {
-      if (_simRunning) {
-        // Stop the journey â€” fully replaces the old map-banner stop button:
+      if (_isJourneyStarted && _simRunning) {
+        // STOP: user is ending the active journey â€” fully replaces the old map-banner stop button:
         // stops simulation, clears route, saves session, announces via TTS.
         _stopSimulation();
         _stopTimer();
@@ -582,8 +588,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _activeRoute = null;
         _saveSession();
         _voice.speak('Navigation stopped.');
-      } else {
-        // Start the journey
+      } else if (!_isJourneyStarted) {
+        // START JOURNEY: transitions from preview â†’ active navigation
+        _isJourneyStarted = true;
         _resetCurrentSession();
         _startTimer();
         _isTracking = true;
@@ -1174,6 +1181,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
 
             // ── Bottom UI Layer (Stats & Panel) ──────────────────
+            // NOTE: Speed circle + trip progress only shown on Maps tab (idx==1)
+            // NOTE: Draggable bottom panel only shown on Maps tab to avoid
+            //       compressing the Gauge speedometer on the Gauge tab (idx==0).
             ValueListenableBuilder<int>(
               valueListenable: _currentIndexNotifier,
               builder: (context, idx, _) => ValueListenableBuilder<AppMode>(
@@ -1184,138 +1194,141 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   (context, simRunning, isTracking) => Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Bottom Stats / Speed Circle
-                      Builder(builder: (context) {
-                        final active = (mode == AppMode.simulation && _activeRoute != null && simRunning) ||
-                                     (mode != AppMode.simulation && isTracking);
-                        if (!active) return const SizedBox.shrink();
+                      // ── Mini Speed Circle + Trip Progress (Maps tab only) ──
+                      if (idx == 1)
+                        Builder(builder: (context) {
+                          // Visible if we have a route (preview or active) or if real tracking is on
+                          final active = (_activeRoute != null) || isTracking;
+                          if (!active) return const SizedBox.shrink();
 
-                        return Align(
-                          alignment: Alignment.bottomLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 16, bottom: 16),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                // Speed Circle
-                                GestureDetector(
-                                  onTap: _onStartStopPressed,
-                                  child: ValueListenableBuilder2<double, bool>(
-                                    _currentSpeedNotifier,
-                                    _isOverLimitNotifier,
-                                    (context, speed, over) => Container(
-                                      width: 80, height: 80,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: const Color(0xFF1C1C1E),
-                                        border: Border.all(color: over ? const Color(0xFFFF453A) : accent, width: 3),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: over ? const Color(0xFFFF453A).withAlpha(120) : accent.withAlpha(100),
-                                            blurRadius: 16, spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              speed.toStringAsFixed(0),
-                                              style: TextStyle(
-                                                color: over ? const Color(0xFFFF453A) : Colors.white,
-                                                fontSize: 32, fontWeight: FontWeight.w800, height: 1.0,
-                                              ),
+                          return Align(
+                            alignment: Alignment.bottomLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 16, bottom: 8),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // Speed Circle
+                                  GestureDetector(
+                                    onTap: _onStartStopPressed,
+                                    child: ValueListenableBuilder2<double, bool>(
+                                      _currentSpeedNotifier,
+                                      _isOverLimitNotifier,
+                                      (context, speed, over) => Container(
+                                        width: 80, height: 80,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: const Color(0xFF1C1C1E),
+                                          border: Border.all(color: over ? const Color(0xFFFF453A) : accent, width: 3),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: over ? const Color(0xFFFF453A).withAlpha(120) : accent.withAlpha(100),
+                                              blurRadius: 16, spreadRadius: 2,
                                             ),
-                                            const SizedBox(height: 2),
-                                            Text('km/h', style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold)),
                                           ],
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                speed.toStringAsFixed(0),
+                                                style: TextStyle(
+                                                  color: over ? const Color(0xFFFF453A) : Colors.white,
+                                                  fontSize: 32, fontWeight: FontWeight.w800, height: 1.0,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text('km/h', style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                
-                                // Navigation Stats Pill
-                                ValueListenableBuilder<RouteInfo?>(
-                                  valueListenable: _activeRouteNotifier,
-                                  builder: (context, route, _) {
-                                    if (route == null) return const SizedBox.shrink();
-                                    return Padding(
-                                      padding: const EdgeInsets.only(left: 12),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xEE1C1C1E),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: accent.withAlpha(80)),
-                                          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.timer_outlined, color: accent, size: 14),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  route.durationText,
-                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Icon(Icons.route_outlined, color: accent, size: 14),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  route.distanceText,
-                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Reach at ${_getArrivalTime(route.durationSeconds)}',
-                                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
 
-                      // Draggable Bottom Panel
-                      (idx == 0 || idx == 1)
-                        ? ValueListenableBuilder<double>(
-                            valueListenable: _bottomPanelHeightNotifier,
-                            builder: (context, height, _) => GestureDetector(
-                              onVerticalDragUpdate: _onPanelDrag,
-                              onVerticalDragEnd: _onPanelDragEnd,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOut,
-                                clipBehavior: Clip.hardEdge,
-                                height: height,
-                                color: bg,
-                                child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
+                                  // Navigation Stats Pill
+                                  ValueListenableBuilder<RouteInfo?>(
+                                    valueListenable: _activeRouteNotifier,
+                                    builder: (context, route, _) {
+                                      if (route == null) return const SizedBox.shrink();
+                                      return Padding(
+                                        padding: const EdgeInsets.only(left: 12),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xEE1C1C1E),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: accent.withAlpha(80)),
+                                            boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.timer_outlined, color: accent, size: 14),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    route.durationText,
+                                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Icon(Icons.route_outlined, color: accent, size: 14),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    route.distanceText,
+                                                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Reach at ${_getArrivalTime(route.durationSeconds)}',
+                                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                          )
-                        : const SizedBox.shrink(),
+                          );
+                        }),
+
+                      // ── Draggable Bottom Panel (Maps tab only, so Gauge
+                      //    speedometer is never compressed by this panel) ──
+                      if (idx == 1)
+                        ValueListenableBuilder<double>(
+                          valueListenable: _bottomPanelHeightNotifier,
+                          builder: (context, height, _) => GestureDetector(
+                            onVerticalDragUpdate: _onPanelDrag,
+                            onVerticalDragEnd: _onPanelDragEnd,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOut,
+                              clipBehavior: Clip.hardEdge,
+                              height: height,
+                              color: bg,
+                              child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
                     ],
                   ),
                 ),
@@ -1857,6 +1870,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 8),
 
           // START/STOP Button and Mic Button
+          // Preview state: when route is set but journey not yet started,
+          // show green "START JOURNEY" button. Once started, show red "STOP".
           ValueListenableBuilder<AppMode>(
             valueListenable: _appModeNotifier,
             builder: (context, mode, _) => ValueListenableBuilder<RouteInfo?>(
@@ -1864,64 +1879,81 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               builder: (context, route, _) => ValueListenableBuilder2<bool, bool>(
                 _simRunningNotifier,
                 _isTrackingNotifier,
-                (context, simRunning, isTracking) => Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: _onStartStopPressed,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 400),
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            color: (mode == AppMode.simulation && route != null)
-                                ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
-                                : (isTracking ? const Color(0xFFFF3B3B) : accent),
-                            borderRadius: BorderRadius.circular(50),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ((mode == AppMode.simulation && route != null)
-                                        ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
-                                        : (isTracking ? const Color(0xFFFF3B3B) : accent))
-                                    .withAlpha(80),
-                                blurRadius: 14,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: InkWell(
-                              onTap: _onStartStopPressed,
-                              borderRadius: BorderRadius.circular(50),
-                              splashColor: Colors.white24,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    (mode == AppMode.simulation && route != null)
-                                        ? (simRunning ? l10n.stop : 'START JOURNEY')
-                                        : (isTracking ? l10n.stop : l10n.start),
-                                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    (mode == AppMode.simulation && route != null)
-                                        ? (simRunning ? Icons.stop_rounded : Icons.navigation_rounded)
-                                        : (isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded),
-                                    color: Colors.white,
-                                    size: 26,
+                (context, simRunning, isTracking) => ValueListenableBuilder<bool>(
+                  valueListenable: _isJourneyStartedNotifier,
+                  builder: (context, journeyStarted, _) {
+                    // ── Determine button state ─────────────────────────────
+                    final isSimNav = mode == AppMode.simulation && route != null;
+                    final Color btnColor;
+                    final String btnLabel;
+                    final IconData btnIcon;
+
+                    if (isSimNav) {
+                      if (journeyStarted && simRunning) {
+                        // Active navigation → STOP (red)
+                        btnColor = const Color(0xFFFF3B3B);
+                        btnLabel = l10n.stop;
+                        btnIcon  = Icons.stop_rounded;
+                      } else {
+                        // Preview state (route shown, journey not started) → START JOURNEY (green)
+                        btnColor = const Color(0xFF00FF88);
+                        btnLabel = 'START JOURNEY';
+                        btnIcon  = Icons.navigation_rounded;
+                      }
+                    } else {
+                      // Non-sim mode: normal session tracking toggle
+                      btnColor = isTracking ? const Color(0xFFFF3B3B) : accent;
+                      btnLabel = isTracking ? l10n.stop : l10n.start;
+                      btnIcon  = isTracking ? Icons.stop_rounded : Icons.play_arrow_rounded;
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _onStartStopPressed,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 400),
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: btnColor,
+                                borderRadius: BorderRadius.circular(50),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: btnColor.withAlpha(80),
+                                    blurRadius: 14,
+                                    spreadRadius: 2,
                                   ),
                                 ],
+                              ),
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: InkWell(
+                                  onTap: _onStartStopPressed,
+                                  borderRadius: BorderRadius.circular(50),
+                                  splashColor: Colors.white24,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        btnLabel,
+                                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(btnIcon, color: Colors.white, size: 26),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildMicButton(accent),
-                  ],
+                        const SizedBox(width: 12),
+                        _buildMicButton(accent),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
