@@ -1,10 +1,44 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/tpms_service.dart';
+import '../services/ambient_light_service.dart';
 import '../widgets/ambient_light_overlay.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TPMS colour palette — NO green / red / orange
+//  lx > 10  →  blue mono   |   lx ≤ 10 (LightMode.night)  →  purple mono
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TpmsColors {
+  final Color healthy; // bright active — all tyres good
+  final Color low;     // dimmer active  — signal weak
+  final Color flat;    // near-off       — pulsing makes it alarming
+  const _TpmsColors({required this.healthy, required this.low, required this.flat});
+
+  Color forStatus(TireStatus s) => switch (s) {
+        TireStatus.healthy => healthy,
+        TireStatus.low     => low,
+        TireStatus.flat    => flat,
+      };
+}
+
+// lx > 10 — electric cyan-blue
+const _blueColors = _TpmsColors(
+  healthy: Color(0xFF00C2FF), // electric cyan-blue
+  low:     Color(0xFF0077CC), // mid blue
+  flat:    Color(0xFF0D2035), // dark blue (near-off) — pulse shows alarm
+);
+
+// lx ≤ 10 — violet-purple
+const _purpleColors = _TpmsColors(
+  healthy: Color(0xFFBF5FFF), // bright violet
+  low:     Color(0xFF7B35CC), // mid purple
+  flat:    Color(0xFF200C35), // dark purple (near-off) — pulse shows alarm
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TPMS Screen  –  dual mode: Dashboard OR Tire Monitor
@@ -34,6 +68,10 @@ class _TpmsScreenState extends State<TpmsScreen>
   final List<String> _nearbyLog = [];
   bool _showDebug = false;
 
+  // Lux polling timer — ensures build() re-runs frequently so the raw
+  // lux value (lux ≤ 10 → purple, lux > 10 → blue) is always current.
+  Timer? _luxTimer;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +81,10 @@ class _TpmsScreenState extends State<TpmsScreen>
     _pulseAnim = Tween<double>(begin: 0.88, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    // Poll light sensor every 500 ms so the 10 lx boundary is caught promptly
+    _luxTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) setState(() {});
+    });
     _requestPermsAndStart();
   }
 
@@ -75,6 +117,7 @@ class _TpmsScreenState extends State<TpmsScreen>
 
   @override
   void dispose() {
+    _luxTimer?.cancel();
     _pulseController.dispose();
     if (_advertising) _peripheral.stop();
     super.dispose();
@@ -131,11 +174,16 @@ class _TpmsScreenState extends State<TpmsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final lightMode = AmbientLightProvider.of(context);
-    final accent  = LightThemePalette.accent(lightMode);
-    final bg      = LightThemePalette.background(lightMode);
-    final textPri = LightThemePalette.textPrimary(lightMode);
-    final textSec = LightThemePalette.textSecondary(lightMode);
+    final lightMode  = AmbientLightProvider.of(context); // triggers rebuild on mode change
+    // Read raw lux for the exact 10 lx threshold the user specified.
+    // LightMode changes are used only for bg/text colours (structural palette).
+    final lux        = AmbientLightService.instance.currentLux;
+    // lx > 10  → blue    |    lx ≤ 10  → purple
+    final tpmsColors = lux <= 200 ? _purpleColors : _blueColors;
+    final accent     = tpmsColors.healthy;  // blue or purple — never green/orange
+    final bg         = LightThemePalette.background(lightMode);
+    final textPri    = LightThemePalette.textPrimary(lightMode);
+    final textSec    = LightThemePalette.textSecondary(lightMode);
 
     return Scaffold(
       backgroundColor: bg,
@@ -165,12 +213,10 @@ class _TpmsScreenState extends State<TpmsScreen>
                     width: 8, height: 8,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: scanning
-                          ? const Color(0xFF00FF88)
-                          : Colors.grey,
+                      color: scanning ? accent : Colors.grey,
                       boxShadow: scanning
                           ? [BoxShadow(
-                              color: const Color(0xFF00FF88).withAlpha(140),
+                              color: accent.withAlpha(140),
                               blurRadius: 6)]
                           : [],
                     ),
@@ -194,7 +240,7 @@ class _TpmsScreenState extends State<TpmsScreen>
             // ── Content ─────────────────────────────────────────────────────
             Expanded(
               child: _mode == 0
-                  ? _buildDashboardMode(accent, bg, textPri, textSec)
+                  ? _buildDashboardMode(accent, bg, textPri, textSec, tpmsColors)
                   : _buildTireMode(accent, bg, textPri, textSec),
             ),
           ],
@@ -265,7 +311,8 @@ class _TpmsScreenState extends State<TpmsScreen>
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildDashboardMode(
-      Color accent, Color bg, Color textPri, Color textSec) {
+      Color accent, Color bg, Color textPri, Color textSec,
+      _TpmsColors tpmsColors) {
     return Column(
       children: [
         // Status banner
@@ -298,6 +345,7 @@ class _TpmsScreenState extends State<TpmsScreen>
                       frStatus: fr.status,
                       rlStatus: rl.status,
                       rrStatus: rr.status,
+                      colors: tpmsColors,
                     ),
                     size: Size.infinite,
                   ),
@@ -314,19 +362,19 @@ class _TpmsScreenState extends State<TpmsScreen>
                       childAspectRatio: 2.1,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        _TyreCard(data: fl, pulseAnim: _pulseAnim),
-                        _TyreCard(data: fr, pulseAnim: _pulseAnim),
-                        _TyreCard(data: rl, pulseAnim: _pulseAnim),
-                        _TyreCard(data: rr, pulseAnim: _pulseAnim),
+                        _TyreCard(data: fl, pulseAnim: _pulseAnim, colors: tpmsColors),
+                        _TyreCard(data: fr, pulseAnim: _pulseAnim, colors: tpmsColors),
+                        _TyreCard(data: rl, pulseAnim: _pulseAnim, colors: tpmsColors),
+                        _TyreCard(data: rr, pulseAnim: _pulseAnim, colors: tpmsColors),
                       ],
                     ),
                   ),
                 ),
-                // Signal bar (shows strongest active tyre signal)
+                // Signal bar
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 4),
-                  child: _SignalRow(tire: fl, textSec: textSec),
+                  child: _SignalRow(tire: fl, textSec: textSec, colors: tpmsColors),
                 ),
               ]);
             },
@@ -695,13 +743,13 @@ class _TpmsScreenState extends State<TpmsScreen>
 class _TyreCard extends StatelessWidget {
   final TireData data;
   final Animation<double> pulseAnim;
-  const _TyreCard({required this.data, required this.pulseAnim});
+  final _TpmsColors colors;
+  const _TyreCard({
+    required this.data,
+    required this.pulseAnim,
+    required this.colors,
+  });
 
-  static Color _c(TireStatus s) => switch (s) {
-        TireStatus.healthy => const Color(0xFF00FF88),
-        TireStatus.low     => const Color(0xFFFFD60A),
-        TireStatus.flat    => const Color(0xFFFF453A),
-      };
   static IconData _icon(TireStatus s) => switch (s) {
         TireStatus.healthy => Icons.check_circle_outline_rounded,
         TireStatus.low     => Icons.warning_amber_rounded,
@@ -715,7 +763,10 @@ class _TyreCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _c(data.status);
+    final c = colors.forStatus(data.status);
+    // Make flat very obvious: boost the glow alpha even though color is dim
+    final glowAlpha = data.status == TireStatus.flat ? 120 : 50;
+    final borderAlpha = data.status == TireStatus.flat ? 200 : 100;
     return AnimatedBuilder(
       animation: pulseAnim,
       builder: (_, child) => Transform.scale(
@@ -731,11 +782,11 @@ class _TyreCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xFF1C1C1E).withAlpha(210),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: c.withAlpha(100), width: 1.8),
+              border: Border.all(color: c.withAlpha(borderAlpha), width: 1.8),
               boxShadow: [
                 BoxShadow(
-                    color: c.withAlpha(50),
-                    blurRadius: 12,
+                    color: c.withAlpha(glowAlpha),
+                    blurRadius: 14,
                     spreadRadius: 1)
               ],
             ),
@@ -789,18 +840,17 @@ class _TyreCard extends StatelessWidget {
 class _SignalRow extends StatelessWidget {
   final TireData tire;
   final Color    textSec;
-  const _SignalRow({required this.tire, required this.textSec});
-
-  static Color _c(TireStatus s) => switch (s) {
-        TireStatus.healthy => const Color(0xFF00FF88),
-        TireStatus.low     => const Color(0xFFFFD60A),
-        TireStatus.flat    => const Color(0xFFFF453A),
-      };
+  final _TpmsColors colors;
+  const _SignalRow({
+    required this.tire,
+    required this.textSec,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
     final pct   = tire.signalPercent;
-    final color = _c(tire.status);
+    final color = colors.forStatus(tire.status);
     return Row(children: [
       SizedBox(
         width: 90,
@@ -860,19 +910,15 @@ class _CarPainter extends CustomPainter {
   final TireStatus frStatus;
   final TireStatus rlStatus;
   final TireStatus rrStatus;
+  final _TpmsColors colors;
 
   const _CarPainter({
     required this.flStatus,
     required this.frStatus,
     required this.rlStatus,
     required this.rrStatus,
+    required this.colors,
   });
-
-  static Color _c(TireStatus s) => switch (s) {
-        TireStatus.healthy => const Color(0xFF00FF88),
-        TireStatus.low     => const Color(0xFFFFD60A),
-        TireStatus.flat    => const Color(0xFFFF453A),
-      };
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -911,7 +957,7 @@ class _CarPainter extends CustomPainter {
     }
 
     void drawTyre(double rx, double ry, TireStatus status) {
-      final tc = _c(status);
+      final tc = colors.forStatus(status);
       final rect = RRect.fromRectAndRadius(
         Rect.fromCenter(
             center: Offset(cx + rx, cy + ry), width: tw, height: th),
@@ -955,7 +1001,8 @@ class _CarPainter extends CustomPainter {
       old.flStatus != flStatus ||
       old.frStatus != frStatus ||
       old.rlStatus != rlStatus ||
-      old.rrStatus != rrStatus;
+      old.rrStatus != rrStatus ||
+      old.colors.healthy != colors.healthy;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

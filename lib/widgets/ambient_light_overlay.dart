@@ -329,12 +329,15 @@ class LightThemePalette {
   const LightThemePalette._();
 
   // ── Accent (primary indicator colour) ──
+  // Above 100 lx (day) → electric blue
+  // Below 100 lx (twilight / night) → violet purple
+  // ── NO green, orange, or red ──
   static Color accent(LightMode mode) {
-    if (!isDarkModeNotifier.value) return const Color(0xFF00C2FF); // Electric Blue
+    if (!isDarkModeNotifier.value) return const Color(0xFF00C2FF); // Light mode: always blue
     return switch (mode) {
-      LightMode.day      => const Color(0xFF00FF88), // Electric Green
-      LightMode.twilight => const Color(0xFF00C2FF), // Electric Blue
-      LightMode.night    => const Color(0xFFFF7A00), // Soft Orange
+      LightMode.day      => const Color(0xFF00C2FF), // Electric Blue
+      LightMode.twilight => const Color(0xFFBF5FFF), // Violet Purple
+      LightMode.night    => const Color(0xFFBF5FFF), // Violet Purple
     };
   }
 
@@ -387,9 +390,9 @@ class LightThemePalette {
 
   // ── Human-readable label for the current mode ──
   static String label(LightMode mode) => switch (mode) {
-        LightMode.day      => '☀️ Day Mode',
-        LightMode.twilight => '🌆 Twilight Mode',
-        LightMode.night    => '🌙 Night (Red-Shift)',
+        LightMode.day      => '☀️ Day Mode  (►100 lx)',
+        LightMode.twilight => '🌆 Dim Mode  (≪100 lx)',
+        LightMode.night    => '🌙 Night Mode (≪10 lx)',
       };
 
   // ── Material icon for the current mode ──
