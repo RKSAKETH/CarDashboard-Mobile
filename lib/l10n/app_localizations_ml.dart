@@ -217,4 +217,88 @@ class AppLocalizationsMl extends AppLocalizations {
 
   @override
   String get pleaseAgreeTerms => 'ദയവായി വ്യവസ്ഥകൾ അംഗീകരിക്കുക';
+
+  @override
+  String get startJourney => 'യാത്ര തുടങ്ങുക';
+
+  @override
+  String get stopJourney => 'യാത്ര നിർത്തുക';
+
+  @override
+  String get gpsSpeedTracker => 'GPS സ്പീഡ് ട്രാക്കർ';
+
+  @override
+  String get unlockAllFeatures => 'എല്ലാ ഫീച്ചറുകളും അൺലോക്ക് ചെയ്യുക';
+
+  @override
+  String get blackBoxLoggerSubtitle => 'സംഭവ കണ്ടെത്തൽ & SOS';
+
+  @override
+  String get adaptiveLightSubtitle => 'ലക്സ് അടിസ്ഥാനത്തിൽ ഓട്ടോ തീം';
+
+  @override
+  String get overrideMode => 'ഓവർറൈഡ് മോഡ് (പരിശോധനക്ക്)';
+
+  @override
+  String get liveAmbientLight => 'തൽസമയ പരിസര വെളിച്ചം';
+
+  @override
+  String get sendFeedback => 'അഭിപ്രായം അയക്കുക';
+
+  @override
+  String get later => 'പിന്നീട്';
+
+  @override
+  String get send => 'അയക്കുക';
+
+  @override
+  String get close => 'അടക്കുക';
+
+  @override
+  String get upgradeNow => 'ഇപ്പോൾ അപ്‌ഗ്രേഡ് ചെയ്യുക';
+
+  @override
+  String get searchDestination => 'ലക്ഷ്യം തിരയുക';
+
+  @override
+  String get whereDoYouWantToGo => 'നിങ്ങൾ എങ്ങോട്ട് പോകാൻ ആഗ്രഹിക്കുന്നു?';
+
+  @override
+  String get tripSaved => 'യാത്ര പ്രൊഫൈലിൽ സേവ് ചെയ്തു!';
+
+  @override
+  String get simMode => 'SIM മോഡ്';
+
+  @override
+  String get moving => 'ചലിക്കുന്നു';
+
+  @override
+  String get idle => 'നിഷ്ക്രിയം';
+
+  @override
+  String get live => 'ലൈവ്';
+
+  @override
+  String get tapMicToSpeak => 'മൈക്ക് അമർത്തുക';
+
+  @override
+  String get listening => 'കേൾക്കുന്നു…';
+
+  @override
+  String get gpsStatus => 'GPS';
+
+  @override
+  String get yes => 'അതെ';
+
+  @override
+  String get no => 'ഇല്ല';
+
+  @override
+  String get sat => 'സാറ്റ്';
+
+  @override
+  String get memberSince => 'അംഗമായ തീയതി';
+
+  @override
+  String get unknown => 'അജ്ഞാതം';
 }

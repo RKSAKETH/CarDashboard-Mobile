@@ -217,4 +217,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pleaseAgreeTerms => 'Please agree to the Terms & Conditions';
+
+  @override
+  String get startJourney => 'START JOURNEY';
+
+  @override
+  String get stopJourney => 'STOP JOURNEY';
+
+  @override
+  String get gpsSpeedTracker => 'GPS Speed Tracker';
+
+  @override
+  String get unlockAllFeatures => 'Unlock all features';
+
+  @override
+  String get blackBoxLoggerSubtitle => 'Incident detection & SOS';
+
+  @override
+  String get adaptiveLightSubtitle => 'Auto cockpit theme by lux';
+
+  @override
+  String get overrideMode => 'Override Mode (for testing)';
+
+  @override
+  String get liveAmbientLight => 'Live Ambient Light';
+
+  @override
+  String get sendFeedback => 'Send Feedback';
+
+  @override
+  String get later => 'Later';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get upgradeNow => 'Upgrade Now';
+
+  @override
+  String get searchDestination => 'Search destination';
+
+  @override
+  String get whereDoYouWantToGo => 'Where do you want to go?';
+
+  @override
+  String get tripSaved => 'Trip saved to profile!';
+
+  @override
+  String get simMode => 'SIM MODE';
+
+  @override
+  String get moving => 'Moving';
+
+  @override
+  String get idle => 'Idle';
+
+  @override
+  String get live => 'Live';
+
+  @override
+  String get tapMicToSpeak => 'Tap mic to speak';
+
+  @override
+  String get listening => 'Listening…';
+
+  @override
+  String get gpsStatus => 'GPS';
+
+  @override
+  String get yes => 'Yes';
+
+  @override
+  String get no => 'No';
+
+  @override
+  String get sat => 'sat';
+
+  @override
+  String get memberSince => 'Member since';
+
+  @override
+  String get unknown => 'Unknown';
 }

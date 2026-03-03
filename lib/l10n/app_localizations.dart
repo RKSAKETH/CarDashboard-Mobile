@@ -523,6 +523,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please agree to the Terms & Conditions'**
   String get pleaseAgreeTerms;
+
+  /// No description provided for @startJourney.
+  ///
+  /// In en, this message translates to:
+  /// **'START JOURNEY'**
+  String get startJourney;
+
+  /// No description provided for @stopJourney.
+  ///
+  /// In en, this message translates to:
+  /// **'STOP JOURNEY'**
+  String get stopJourney;
+
+  /// No description provided for @gpsSpeedTracker.
+  ///
+  /// In en, this message translates to:
+  /// **'GPS Speed Tracker'**
+  String get gpsSpeedTracker;
+
+  /// No description provided for @unlockAllFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock all features'**
+  String get unlockAllFeatures;
+
+  /// No description provided for @blackBoxLoggerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Incident detection & SOS'**
+  String get blackBoxLoggerSubtitle;
+
+  /// No description provided for @adaptiveLightSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto cockpit theme by lux'**
+  String get adaptiveLightSubtitle;
+
+  /// No description provided for @overrideMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Override Mode (for testing)'**
+  String get overrideMode;
+
+  /// No description provided for @liveAmbientLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Live Ambient Light'**
+  String get liveAmbientLight;
+
+  /// No description provided for @sendFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Feedback'**
+  String get sendFeedback;
+
+  /// No description provided for @later.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get later;
+
+  /// No description provided for @send.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @upgradeNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Upgrade Now'**
+  String get upgradeNow;
+
+  /// No description provided for @searchDestination.
+  ///
+  /// In en, this message translates to:
+  /// **'Search destination'**
+  String get searchDestination;
+
+  /// No description provided for @whereDoYouWantToGo.
+  ///
+  /// In en, this message translates to:
+  /// **'Where do you want to go?'**
+  String get whereDoYouWantToGo;
+
+  /// No description provided for @tripSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Trip saved to profile!'**
+  String get tripSaved;
+
+  /// No description provided for @simMode.
+  ///
+  /// In en, this message translates to:
+  /// **'SIM MODE'**
+  String get simMode;
+
+  /// No description provided for @moving.
+  ///
+  /// In en, this message translates to:
+  /// **'Moving'**
+  String get moving;
+
+  /// No description provided for @idle.
+  ///
+  /// In en, this message translates to:
+  /// **'Idle'**
+  String get idle;
+
+  /// No description provided for @live.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get live;
+
+  /// No description provided for @tapMicToSpeak.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap mic to speak'**
+  String get tapMicToSpeak;
+
+  /// No description provided for @listening.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening…'**
+  String get listening;
+
+  /// No description provided for @gpsStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'GPS'**
+  String get gpsStatus;
+
+  /// No description provided for @yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get yes;
+
+  /// No description provided for @no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get no;
+
+  /// No description provided for @sat.
+  ///
+  /// In en, this message translates to:
+  /// **'sat'**
+  String get sat;
+
+  /// No description provided for @memberSince.
+  ///
+  /// In en, this message translates to:
+  /// **'Member since'**
+  String get memberSince;
+
+  /// No description provided for @unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get unknown;
 }
 
 class _AppLocalizationsDelegate

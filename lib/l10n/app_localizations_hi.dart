@@ -218,4 +218,88 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get pleaseAgreeTerms => 'कृपया नियम व शर्तों से सहमत हों';
+
+  @override
+  String get startJourney => 'यात्रा शुरू करें';
+
+  @override
+  String get stopJourney => 'यात्रा रोकें';
+
+  @override
+  String get gpsSpeedTracker => 'GPS स्पीड ट्रैकर';
+
+  @override
+  String get unlockAllFeatures => 'सभी सुविधाएं अनलॉक करें';
+
+  @override
+  String get blackBoxLoggerSubtitle => 'घटना पहचान और SOS';
+
+  @override
+  String get adaptiveLightSubtitle => 'लक्स द्वारा ऑटो कॉकपिट थीम';
+
+  @override
+  String get overrideMode => 'ओवरराइड मोड (परीक्षण के लिए)';
+
+  @override
+  String get liveAmbientLight => 'लाइव परिवेश प्रकाश';
+
+  @override
+  String get sendFeedback => 'प्रतिक्रिया भेजें';
+
+  @override
+  String get later => 'बाद में';
+
+  @override
+  String get send => 'भेजें';
+
+  @override
+  String get close => 'बंद करें';
+
+  @override
+  String get upgradeNow => 'अभी अपग्रेड करें';
+
+  @override
+  String get searchDestination => 'गंतव्य खोजें';
+
+  @override
+  String get whereDoYouWantToGo => 'आप कहाँ जाना चाहते हैं?';
+
+  @override
+  String get tripSaved => 'यात्रा प्रोफ़ाइल में सहेजी गई!';
+
+  @override
+  String get simMode => 'SIM मोड';
+
+  @override
+  String get moving => 'चल रहा है';
+
+  @override
+  String get idle => 'निष्क्रिय';
+
+  @override
+  String get live => 'लाइव';
+
+  @override
+  String get tapMicToSpeak => 'माइक दबाएं';
+
+  @override
+  String get listening => 'सुन रहा है…';
+
+  @override
+  String get gpsStatus => 'GPS';
+
+  @override
+  String get yes => 'हाँ';
+
+  @override
+  String get no => 'नहीं';
+
+  @override
+  String get sat => 'सैट';
+
+  @override
+  String get memberSince => 'सदस्य बने';
+
+  @override
+  String get unknown => 'अज्ञात';
 }

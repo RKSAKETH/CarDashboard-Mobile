@@ -219,4 +219,88 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get pleaseAgreeTerms => 'விதிமுறைகள் மற்றும் நிபந்தனைகளை ஏற்கவும்';
+
+  @override
+  String get startJourney => 'பயணத்தைத் தொடங்கு';
+
+  @override
+  String get stopJourney => 'பயணத்தை நிறுத்து';
+
+  @override
+  String get gpsSpeedTracker => 'GPS வேக டிரேக்கர்';
+
+  @override
+  String get unlockAllFeatures => 'அனைத்து ஆற்றல்களையும் திறக்க';
+
+  @override
+  String get blackBoxLoggerSubtitle => 'சம்பவம் கண்டறிதல் & SOS';
+
+  @override
+  String get adaptiveLightSubtitle => 'லக்ஸ் அடிப்படையில் தானியங்கு தீம்';
+
+  @override
+  String get overrideMode => 'மேல்எழுத்து முறை (சோதனைக்கு)';
+
+  @override
+  String get liveAmbientLight => 'நேரடி சூழல் ஒளி';
+
+  @override
+  String get sendFeedback => 'கருத்தை அனுப்பு';
+
+  @override
+  String get later => 'பிறகு';
+
+  @override
+  String get send => 'அனுப்பு';
+
+  @override
+  String get close => 'மூடு';
+
+  @override
+  String get upgradeNow => 'இன்றே மேம்படுத்து';
+
+  @override
+  String get searchDestination => 'இலக்கையைத் தேடு';
+
+  @override
+  String get whereDoYouWantToGo => 'நீங்கள் எங்கே செல்ல விரும்புகிறீர்கள்?';
+
+  @override
+  String get tripSaved => 'பயணம் சுயவிவரத்தில் சேமிக்கப்பட்டது!';
+
+  @override
+  String get simMode => 'SIM முறை';
+
+  @override
+  String get moving => 'நகருகிறது';
+
+  @override
+  String get idle => 'சலனமற்றது';
+
+  @override
+  String get live => 'நேரலை';
+
+  @override
+  String get tapMicToSpeak => 'மைக்கை அழுத்துங்கள்';
+
+  @override
+  String get listening => 'கேட்கிறது…';
+
+  @override
+  String get gpsStatus => 'GPS';
+
+  @override
+  String get yes => 'ஆம்';
+
+  @override
+  String get no => 'இல்லை';
+
+  @override
+  String get sat => 'சேட்';
+
+  @override
+  String get memberSince => 'உறுப்பினர் ஆனது';
+
+  @override
+  String get unknown => 'தெரியாது';
 }

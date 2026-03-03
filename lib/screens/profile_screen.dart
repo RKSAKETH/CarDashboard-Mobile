@@ -202,7 +202,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Member since: \${_formatDate(userData?[\'createdAt\'])}',
+                            "${l10n.memberSince}: ${_formatDate(userData?['createdAt'])}",
                             style: TextStyle(fontSize: 12, color: textSec),
                           ),
                         ],
@@ -435,23 +435,40 @@ class ProfileScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem(
-                      l10n.totalTrips,
-                      '\${stats[\'totalTrips\'] ?? 0}',
-                      Icons.route,
-                      textPri, textSec, accent,
+                    Expanded(
+                      child: _buildStatItem(
+                        l10n.totalTrips,
+                        "${stats['totalTrips'] ?? 0}",
+                        Icons.route,
+                        textPri, textSec, accent,
+                      ),
                     ),
-                    _buildStatItem(
-                      l10n.distance,
-                      '\${(stats[\'totalDistance\'] ?? 0.0).toStringAsFixed(1)} km',
-                      Icons.straighten,
-                      textPri, textSec, accent,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatItem(
+                        l10n.distance,
+                        "${(stats['totalDistance'] ?? 0.0).toStringAsFixed(1)} km",
+                        Icons.straighten,
+                        textPri, textSec, accent,
+                      ),
                     ),
-                    _buildStatItem(
-                      l10n.max,
-                      '\${(stats[\'maxSpeed\'] ?? 0.0).toStringAsFixed(0)} km/h',
-                      Icons.speed,
-                      textPri, textSec, accent,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatItem(
+                        l10n.max,
+                        "${(stats['maxSpeed'] ?? 0.0).toStringAsFixed(0)} km/h",
+                        Icons.speed,
+                        textPri, textSec, accent,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildStatItem(
+                        l10n.avg,
+                        "${(stats['avgSpeed'] ?? 0.0).toStringAsFixed(0)} km/h",
+                        Icons.show_chart,
+                        textPri, textSec, accent,
+                      ),
                     ),
                   ],
                 ),
@@ -469,31 +486,31 @@ class ProfileScreen extends StatelessWidget {
       String label, String value, IconData icon,
       Color textPri, Color textSec, Color accent) {
     return Container(
-      width: 100,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF14151A),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: accent.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(color: accent.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 2),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 child: TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0.0, end: 0.8),
                   duration: const Duration(milliseconds: 1500),
                   curve: Curves.easeOutCubic,
-                  builder: (context, value, _) {
+                  builder: (context, val, _) {
                     return CircularProgressIndicator(
-                      value: value,
+                      value: val,
                       strokeWidth: 3,
                       strokeCap: StrokeCap.round,
                       color: accent,
@@ -502,22 +519,30 @@ class ProfileScreen extends StatelessWidget {
                   }
                 ),
               ),
-              Icon(icon, color: accent, size: 24),
+              Icon(icon, color: accent, size: 20),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textPri,
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: textPri,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: textSec),
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 10, color: textSec),
+              textAlign: TextAlign.center,
+            ),
           ),
         ],
       ),
@@ -572,6 +597,12 @@ class ProfileScreen extends StatelessWidget {
             return Column(
               children: trips.map((doc) {
                 final trip = doc.data() as Map<String, dynamic>;
+                // Safe casting — Firestore stores these as num (int or double)
+                final dist = (trip['distance'] as num? ?? 0).toDouble();
+                final maxSpd = (trip['maxSpeed'] as num? ?? 0).toDouble();
+                final durSec = (trip['durationSeconds'] as num? ?? 0).toInt();
+                // Derive avg speed from distance / time (accurate even if stored avg is 0)
+                final avgSpd = durSec > 0 ? (dist / durSec) * 3600 : 0.0;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
@@ -591,16 +622,16 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     title: Text(
-                      '\${trip[\'distance\']?.toStringAsFixed(2) ?? \'0.00\'} km',
+                      "${dist.toStringAsFixed(2)} km",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: textPri,
                       ),
                     ),
                     subtitle: Text(
-                      'Max: \${trip[\'maxSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h \u2022 '
-                      'Avg: \${trip[\'avgSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h\n'
-                      '\${_formatDate(trip[\'timestamp\'])}',
+                      "Max: ${maxSpd.toStringAsFixed(0)} km/h \u2022 "
+                      "Avg: ${avgSpd.toStringAsFixed(0)} km/h\n"
+                      "${_formatDate(trip['timestamp'])}",
                       style: TextStyle(color: textSec),
                     ),
                     trailing: IconButton(

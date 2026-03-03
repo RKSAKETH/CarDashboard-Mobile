@@ -219,4 +219,88 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get pleaseAgreeTerms => 'దయచేసి నిబంధనలు మరియు షరతులను అంగీకరించండి';
+
+  @override
+  String get startJourney => 'ప్రయాణం ప్రారంభించు';
+
+  @override
+  String get stopJourney => 'ప్రయాణం ఆపు';
+
+  @override
+  String get gpsSpeedTracker => 'GPS వేగం ట్రాకర్';
+
+  @override
+  String get unlockAllFeatures => 'అన్ని ఫీచర్లను అన్లాక్ చేయండి';
+
+  @override
+  String get blackBoxLoggerSubtitle => 'సంఘటన గుర్తింపు & SOS';
+
+  @override
+  String get adaptiveLightSubtitle => 'లక్స్ ఆధారంగా ఆటో థీమ్';
+
+  @override
+  String get overrideMode => 'ఓవర్‌రైడ్ మోడ్ (పరీక్షకు)';
+
+  @override
+  String get liveAmbientLight => 'లైవ్ పరిసర వెలుతురు';
+
+  @override
+  String get sendFeedback => 'అభిప్రాయం పంపండి';
+
+  @override
+  String get later => 'తర్వాత';
+
+  @override
+  String get send => 'పంపించు';
+
+  @override
+  String get close => 'మూసు';
+
+  @override
+  String get upgradeNow => 'ఇప్పుడే అప్‌గ్రేడ్ చేయండి';
+
+  @override
+  String get searchDestination => 'గమ్యం వెతకండి';
+
+  @override
+  String get whereDoYouWantToGo => 'మీరు ఎక్కడికి వెళ్ళాలనుకుంటున్నారు?';
+
+  @override
+  String get tripSaved => 'ప్రయాణం ప్రొఫైల్లో సేవ్ చేయబడింది!';
+
+  @override
+  String get simMode => 'SIM మోడ్';
+
+  @override
+  String get moving => 'కదులుతున్నది';
+
+  @override
+  String get idle => 'నిష్క్రియంగా';
+
+  @override
+  String get live => 'లైవ్';
+
+  @override
+  String get tapMicToSpeak => 'మైక్ నొక్కండి';
+
+  @override
+  String get listening => 'వింటున్నది…';
+
+  @override
+  String get gpsStatus => 'GPS';
+
+  @override
+  String get yes => 'అవును';
+
+  @override
+  String get no => 'లేదు';
+
+  @override
+  String get sat => 'శాట్';
+
+  @override
+  String get memberSince => 'సభ్యుడైన తేదీ';
+
+  @override
+  String get unknown => 'తెలియదు';
 }

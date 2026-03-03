@@ -136,26 +136,27 @@ class FirestoreService {
       double totalDistance = 0;
       int totalDuration = 0;
       double maxSpeed = 0;
-      double totalAvgSpeed = 0;
 
       for (var doc in querySnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        totalDistance += (data['distance'] ?? 0.0) as double;
-        totalDuration += (data['durationSeconds'] ?? 0) as int;
-        maxSpeed = maxSpeed > (data['maxSpeed'] ?? 0.0) 
-            ? maxSpeed 
-            : (data['maxSpeed'] ?? 0.0) as double;
-        totalAvgSpeed += (data['avgSpeed'] ?? 0.0) as double;
+        // Safe casting: Firestore can return int or double for numeric fields
+        totalDistance += (data['distance'] as num? ?? 0).toDouble();
+        totalDuration += (data['durationSeconds'] as num? ?? 0).toInt();
+        final docMax = (data['maxSpeed'] as num? ?? 0).toDouble();
+        if (docMax > maxSpeed) maxSpeed = docMax;
       }
+
+      // Compute true average speed from total distance / total time (in hours)
+      final avgSpeed = totalDuration > 0
+          ? (totalDistance / totalDuration) * 3600
+          : 0.0;
 
       return {
         'totalTrips': querySnapshot.docs.length,
         'totalDistance': totalDistance,
         'totalDuration': totalDuration,
         'maxSpeed': maxSpeed,
-        'avgSpeed': querySnapshot.docs.isNotEmpty 
-            ? totalAvgSpeed / querySnapshot.docs.length 
-            : 0.0,
+        'avgSpeed': avgSpeed,
       };
     } catch (e) {
       print('Error getting trip statistics: $e');
