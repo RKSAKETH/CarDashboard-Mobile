@@ -19,6 +19,7 @@ import '../services/simulation_service.dart';
 
 import 'profile_screen.dart';
 import 'fatigue_detection_screen.dart';
+import 'tpms_screen.dart';
 import '../services/incident_service.dart';
 
 // â”€â”€â”€ App Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2029,7 +2030,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _onNavTap(int idx) {
     if (idx == 3) {
       Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()));
+          MaterialPageRoute(builder: (_) => const TpmsScreen()));
     } else if (idx == 4) {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const ProfileScreen()));
@@ -2040,11 +2041,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildCustomNavBar(Color bg, Color accent, Color textSec) {
     const items = [
-      (Icons.speed_rounded,       'Gauge',    0),
-      (Icons.map_rounded,         'Map',      1),
-      (Icons.music_note_rounded,  'Music',    2),
-      (Icons.settings_rounded,    'Settings', 3),
-      (Icons.person_rounded,      'Profile',  4),
+      (Icons.speed_rounded,          'Gauge',   0),
+      (Icons.map_rounded,            'Map',     1),
+      (Icons.music_note_rounded,     'Music',   2),
+      (Icons.tire_repair_rounded,    'TPMS',    3),
+      (Icons.person_rounded,         'Profile', 4),
     ];
     return Container(
       color: bg,
