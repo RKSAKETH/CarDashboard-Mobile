@@ -1183,207 +1183,199 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
             const SizedBox(height: 8),
 
-            // ── Main View ────────────────────────────────────────
+            // ── Main View & Overlays ────────────────────────────
             Expanded(
               child: ValueListenableBuilder<int>(
                 valueListenable: _currentIndexNotifier,
                 builder: (context, idx, _) => LayoutBuilder(
                   builder: (context, constraints) {
                     final maxLeft = (constraints.maxWidth - 290.0).clamp(0.0, double.infinity);
-                    return ValueListenableBuilder<bool>(
-                      valueListenable: _simSliderMinimizedNotifier,
-                      builder: (context, minimized, _) {
-                        final h = minimized ? 48.0 : 120.0;
-                        final maxTop = (constraints.maxHeight - h).clamp(0.0, double.infinity);
-                        
-                        return Stack(
-                          children: [
-                            ValueListenableBuilder2<double, bool>(
-                              _currentSpeedNotifier,
-                              _isOverLimitNotifier,
-                              (context, _, __) => _buildSpeedWarningWrapper(_buildCurrentView()),
-                            ),
+                    
+                    return Stack(
+                      children: [
+                        // The Primary content (Map / Gauge / Music)
+                        ValueListenableBuilder2<double, bool>(
+                          _currentSpeedNotifier,
+                          _isOverLimitNotifier,
+                          (context, _, __) => _buildSpeedWarningWrapper(_buildCurrentView()),
+                        ),
 
-                            ValueListenableBuilder<AppMode>(
-                              valueListenable: _appModeNotifier,
-                              builder: (context, mode, _) {
-                                if (mode != AppMode.simulation) return const SizedBox.shrink();
-                                return ValueListenableBuilder<Offset>(
-                                  valueListenable: _simSliderOffsetNotifier,
-                                  builder: (context, offset, _) => Positioned(
-                                    left: offset.dx.clamp(0.0, maxLeft),
-                                    top: offset.dy.clamp(0.0, maxTop),
-                                    child: GestureDetector(
-                                      onPanUpdate: (d) => _simSliderOffset = Offset(
-                                        (_simSliderOffset.dx + d.delta.dx).clamp(0.0, maxLeft),
-                                        (_simSliderOffset.dy + d.delta.dy).clamp(0.0, maxTop),
-                                      ),
-                                      child: _buildSimSpeedSlider(accent, textPri, textSec),
+                        // Simulation speed slider overlay
+                        ValueListenableBuilder<AppMode>(
+                          valueListenable: _appModeNotifier,
+                          builder: (context, mode, _) {
+                            if (mode != AppMode.simulation) return const SizedBox.shrink();
+                            return ValueListenableBuilder<Offset>(
+                              valueListenable: _simSliderOffsetNotifier,
+                              builder: (context, offset, _) {
+                                final h = _simSliderMinimized ? 48.0 : 120.0;
+                                final maxTop = (constraints.maxHeight - h).clamp(0.0, double.infinity);
+                                
+                                return Positioned(
+                                  left: offset.dx.clamp(0.0, maxLeft),
+                                  top: offset.dy.clamp(0.0, maxTop),
+                                  child: GestureDetector(
+                                    onPanUpdate: (d) => _simSliderOffset = Offset(
+                                      (_simSliderOffset.dx + d.delta.dx).clamp(0.0, maxLeft),
+                                      (_simSliderOffset.dy + d.delta.dy).clamp(0.0, maxTop),
                                     ),
+                                    child: _buildSimSpeedSlider(accent, textPri, textSec),
                                   ),
                                 );
                               },
+                            );
+                          },
+                        ),
+
+                        // --- NEW: Bottom Overlays (Speed Circle, Stats & Draggable Panel) ---
+                        // These are now overlays to prevent pushing the Map expanded out of view
+                        Positioned(
+                          left: 0, right: 0, bottom: 0,
+                          child: ValueListenableBuilder<AppMode>(
+                            valueListenable: _appModeNotifier,
+                            builder: (context, mode, _) => ValueListenableBuilder2<bool, bool>(
+                              _simRunningNotifier,
+                              _isTrackingNotifier,
+                              (context, simRunning, isTracking) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Bottom Stats / Speed Circle group
+                                  Builder(builder: (context) {
+                                    final active = (mode == AppMode.simulation && _activeRoute != null && simRunning) ||
+                                                 (mode != AppMode.simulation && isTracking);
+                                    if (!active) return const SizedBox.shrink();
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(left: 16, bottom: 16),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          // Speed Circle
+                                          ValueListenableBuilder2<double, bool>(
+                                            _currentSpeedNotifier,
+                                            _isOverLimitNotifier,
+                                            (context, speed, over) => Container(
+                                              width: 80, height: 80,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: const Color(0xFF1C1C1E),
+                                                border: Border.all(color: over ? const Color(0xFFFF453A) : accent, width: 3),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: over ? const Color(0xFFFF453A).withAlpha(120) : accent.withAlpha(100),
+                                                    blurRadius: 16, spreadRadius: 2,
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Center(
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      speed.toStringAsFixed(0),
+                                                      style: TextStyle(
+                                                        color: over ? const Color(0xFFFF453A) : Colors.white,
+                                                        fontSize: 32, fontWeight: FontWeight.w800, height: 1.0,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text('km/h', style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          // Navigation Stats Pill
+                                          ValueListenableBuilder<RouteInfo?>(
+                                            valueListenable: _activeRouteNotifier,
+                                            builder: (context, route, _) {
+                                              if (route == null) return const SizedBox.shrink();
+                                              return Padding(
+                                                padding: const EdgeInsets.only(left: 12),
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xEE1C1C1E),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    border: Border.all(color: accent.withAlpha(80)),
+                                                    boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(Icons.timer_outlined, color: accent, size: 14),
+                                                          const SizedBox(width: 6),
+                                                          Text(
+                                                            route.durationText,
+                                                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                          Icon(Icons.route_outlined, color: accent, size: 14),
+                                                          const SizedBox(width: 6),
+                                                          Text(
+                                                            route.distanceText,
+                                                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
+                                                          const SizedBox(width: 6),
+                                                          Text(
+                                                            'Reach at ${_getArrivalTime(route.durationSeconds)}',
+                                                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+
+                                  // Draggable Bottom Panel (as an overlay at the very bottom of the Stack)
+                                  if (idx == 0 || idx == 1)
+                                    ValueListenableBuilder<double>(
+                                      valueListenable: _bottomPanelHeightNotifier,
+                                      builder: (context, height, _) => GestureDetector(
+                                        onVerticalDragUpdate: _onPanelDrag,
+                                        onVerticalDragEnd: _onPanelDragEnd,
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 200),
+                                          curve: Curves.easeOut,
+                                          clipBehavior: Clip.hardEdge,
+                                          height: height,
+                                          color: bg,
+                                          child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
-                          ],
-                        );
-                      },
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
               ),
             ),
-
-            // ── Bottom UI Layer (Stats & Panel) ──────────────────
-            ValueListenableBuilder<int>(
-              valueListenable: _currentIndexNotifier,
-              builder: (context, idx, _) => ValueListenableBuilder<AppMode>(
-                valueListenable: _appModeNotifier,
-                builder: (context, mode, _) => ValueListenableBuilder2<bool, bool>(
-                  _simRunningNotifier,
-                  _isTrackingNotifier,
-                  (context, simRunning, isTracking) => Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Bottom Stats / Speed Circle
-                      Builder(builder: (context) {
-                        final active = (mode == AppMode.simulation && _activeRoute != null && simRunning) ||
-                                     (mode != AppMode.simulation && isTracking);
-                        if (!active) return const SizedBox.shrink();
-
-                        return Align(
-                          alignment: Alignment.bottomLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 16, bottom: 16),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                // Speed Circle
-                                GestureDetector(
-                                  // Removed onTap to prevent accidentally stopping the journey
-                                  child: ValueListenableBuilder2<double, bool>(
-                                    _currentSpeedNotifier,
-                                    _isOverLimitNotifier,
-                                    (context, speed, over) => Container(
-                                      width: 80, height: 80,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: const Color(0xFF1C1C1E),
-                                        border: Border.all(color: over ? const Color(0xFFFF453A) : accent, width: 3),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: over ? const Color(0xFFFF453A).withAlpha(120) : accent.withAlpha(100),
-                                            blurRadius: 16, spreadRadius: 2,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              speed.toStringAsFixed(0),
-                                              style: TextStyle(
-                                                color: over ? const Color(0xFFFF453A) : Colors.white,
-                                                fontSize: 32, fontWeight: FontWeight.w800, height: 1.0,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text('km/h', style: TextStyle(color: textSec, fontSize: 11, fontWeight: FontWeight.bold)),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                
-                                // Navigation Stats Pill
-                                ValueListenableBuilder<RouteInfo?>(
-                                  valueListenable: _activeRouteNotifier,
-                                  builder: (context, route, _) {
-                                    if (route == null) return const SizedBox.shrink();
-                                    return Padding(
-                                      padding: const EdgeInsets.only(left: 12),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xEE1C1C1E),
-                                          borderRadius: BorderRadius.circular(20),
-                                          border: Border.all(color: accent.withAlpha(80)),
-                                          boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.timer_outlined, color: accent, size: 14),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  route.durationText,
-                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Icon(Icons.route_outlined, color: accent, size: 14),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  route.distanceText,
-                                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.access_time_rounded, color: Colors.white54, size: 13),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  'Reach at ${_getArrivalTime(route.durationSeconds)}',
-                                                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-
-                      // Draggable Bottom Panel
-                      (idx == 0 || idx == 1)
-                        ? ValueListenableBuilder<double>(
-                            valueListenable: _bottomPanelHeightNotifier,
-                            builder: (context, height, _) => GestureDetector(
-                              onVerticalDragUpdate: _onPanelDrag,
-                              onVerticalDragEnd: _onPanelDragEnd,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOut,
-                                clipBehavior: Clip.hardEdge,
-                                height: height,
-                                color: bg,
-                                child: _buildBottomPanel(accent, bg, surface, textPri, textSec),
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-
-            // ── Bottom Navigation (premium floating-circle style) ────────
             ValueListenableBuilder<int>(
               valueListenable: _currentIndexNotifier,
               builder: (context, idx, _) => _buildCustomNavBar(bg, accent, textSec),
@@ -1406,55 +1398,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         duration: const Duration(milliseconds: 300),
         color: bg,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            // Label
-            Icon(Icons.settings_suggest, size: 16, color: textSec),
-            const SizedBox(width: 6),
-            Text('${l10n.mode}:', style: TextStyle(color: textSec, fontSize: 12)),
-            const SizedBox(width: 8),
-
-            // Toggle pill
-            Container(
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: accent.withAlpha(60)),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Label
+              Icon(Icons.settings_suggest, size: 16, color: textSec),
+              const SizedBox(width: 6),
+              Text('${l10n.mode}:', style: TextStyle(color: textSec, fontSize: 12)),
+              const SizedBox(width: 8),
+        
+              // Toggle pill
+              Container(
+                decoration: BoxDecoration(
+                  color: surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: accent.withAlpha(60)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _modeChip(l10n.dev, Icons.developer_mode, AppMode.dev, currentMode == AppMode.dev, accent, textSec),
+                    _modeChip(l10n.simulation, Icons.play_circle_fill, AppMode.simulation, currentMode == AppMode.simulation, accent, textSec),
+                    _modeChip('Live', Icons.navigation, AppMode.live, currentMode == AppMode.live, accent, textSec),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _modeChip(l10n.dev, Icons.developer_mode, AppMode.dev, currentMode == AppMode.dev, accent, textSec),
-                  _modeChip(l10n.simulation, Icons.play_circle_fill, AppMode.simulation, currentMode == AppMode.simulation, accent, textSec),
-                  _modeChip('Live', Icons.navigation, AppMode.live, currentMode == AppMode.live, accent, textSec),
-                ],
-              ),
-            ),
-
-            const Spacer(),
-
-            // Live speed indicator (shown only while simulation is running)
-            if (currentMode == AppMode.simulation)
-              ValueListenableBuilder<bool>(
-                valueListenable: _simRunningNotifier,
-                builder: (context, simRunning, _) {
-                  if (!simRunning) return const SizedBox.shrink();
-                  return ValueListenableBuilder<double>(
-                    valueListenable: _simSpeedKmhNotifier,
-                    builder: (context, simSpeed, _) => Row(
-                      children: [
-                        const Icon(Icons.directions_car, size: 14, color: Color(0xFF00FF88)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${simSpeed.toInt()} km/h',
-                          style: const TextStyle(color: Color(0xFF00FF88), fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-          ],
+        
+              const SizedBox(width: 16), // Replaced Spacer for horizontal scrolling
+        
+              // Live speed indicator (shown only while simulation is running)
+              if (currentMode == AppMode.simulation)
+                ValueListenableBuilder<bool>(
+                  valueListenable: _simRunningNotifier,
+                  builder: (context, simRunning, _) {
+                    if (!simRunning) return const SizedBox.shrink();
+                    return ValueListenableBuilder<double>(
+                      valueListenable: _simSpeedKmhNotifier,
+                      builder: (context, simSpeed, _) => Row(
+                        children: [
+                          const Icon(Icons.directions_car, size: 14, color: Color(0xFF00FF88)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${simSpeed.toInt()} km/h',
+                            style: const TextStyle(color: Color(0xFF00FF88), fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -1930,10 +1925,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       color: bg,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
           // â”€â”€ Drag Handle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Center(
             child: Container(
@@ -2091,7 +2089,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
