@@ -5,6 +5,7 @@ import '../services/firestore_service.dart';
 import '../services/auth_service.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/ambient_light_overlay.dart';
+import 'home_screen.dart' show HistoryScreen;
 
 /// Example screen demonstrating Firestore usage
 /// Shows user profile and trip statistics
@@ -120,7 +121,7 @@ class ProfileScreen extends StatelessWidget {
             color: bg,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Error: \${snapshot.error}',
+              child: Text('Error: ${snapshot.error}',
                   style: TextStyle(color: textPri)),
             ),
           );
@@ -202,7 +203,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Member since: \${_formatDate(userData?[\'createdAt\'])}',
+                            'Member since: ${_formatDate(userData?["createdAt"])}',
                             style: TextStyle(fontSize: 12, color: textSec),
                           ),
                         ],
@@ -397,7 +398,7 @@ class ProfileScreen extends StatelessWidget {
             color: bg,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text('Error: \${snapshot.error}',
+              child: Text('Error: ${snapshot.error}',
                   style: TextStyle(color: textPri)),
             ),
           );
@@ -437,19 +438,19 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     _buildStatItem(
                       l10n.totalTrips,
-                      '\${stats[\'totalTrips\'] ?? 0}',
+                      '${stats['totalTrips'] ?? 0}',
                       Icons.route,
                       textPri, textSec, accent,
                     ),
                     _buildStatItem(
                       l10n.distance,
-                      '\${(stats[\'totalDistance\'] ?? 0.0).toStringAsFixed(1)} km',
+                      '${((stats['totalDistance'] ?? 0.0) as num).toStringAsFixed(1)} km',
                       Icons.straighten,
                       textPri, textSec, accent,
                     ),
                     _buildStatItem(
                       l10n.max,
-                      '\${(stats[\'maxSpeed\'] ?? 0.0).toStringAsFixed(0)} km/h',
+                      '${((stats['maxSpeed'] ?? 0.0) as num).toStringAsFixed(0)} km/h',
                       Icons.speed,
                       textPri, textSec, accent,
                     ),
@@ -530,13 +531,28 @@ class ProfileScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.recentTrips,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: textPri,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              l10n.recentTrips,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: textPri,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen()),
+              ),
+              icon: Icon(Icons.history_rounded, color: accent, size: 18),
+              label: Text('View All',
+                  style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w600)),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         StreamBuilder<QuerySnapshot>(
@@ -547,7 +563,7 @@ class ProfileScreen extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return Text('Error: \${snapshot.error}',
+              return Text('Error: ${snapshot.error}',
                   style: TextStyle(color: textPri));
             }
 
@@ -591,16 +607,16 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     title: Text(
-                      '\${trip[\'distance\']?.toStringAsFixed(2) ?? \'0.00\'} km',
+                      '${(trip['distance'] as num?)?.toStringAsFixed(2) ?? '0.00'} km',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: textPri,
                       ),
                     ),
                     subtitle: Text(
-                      'Max: \${trip[\'maxSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h \u2022 '
-                      'Avg: \${trip[\'avgSpeed\']?.toStringAsFixed(0) ?? \'0\'} km/h\n'
-                      '\${_formatDate(trip[\'timestamp\'])}',
+                      'Max: ${(trip['maxSpeed'] as num?)?.toStringAsFixed(0) ?? '0'} km/h • '
+                      'Avg: ${(trip['avgSpeed'] as num?)?.toStringAsFixed(0) ?? '0'} km/h\n'
+                      '${_formatDate(trip['timestamp'])}',
                       style: TextStyle(color: textSec),
                     ),
                     trailing: IconButton(
