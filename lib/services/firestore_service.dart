@@ -68,6 +68,7 @@ class FirestoreService {
     required double avgSpeed,
     required int durationSeconds,
     required String vehicleType,
+    String? destinationName,
   }) async {
     try {
       DocumentReference docRef = await tripsCollection.add({
@@ -77,6 +78,7 @@ class FirestoreService {
         'avgSpeed': avgSpeed,
         'durationSeconds': durationSeconds,
         'vehicleType': vehicleType,
+        if (destinationName != null) 'destinationName': destinationName,
         'timestamp': FieldValue.serverTimestamp(),
       });
       

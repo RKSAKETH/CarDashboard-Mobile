@@ -2,6 +2,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../widgets/gauge_view.dart';
@@ -21,6 +23,7 @@ import 'profile_screen.dart';
 import 'fatigue_detection_screen.dart';
 import 'tpms_screen.dart';
 import '../services/incident_service.dart';
+import '../services/firestore_service.dart';
 
 // â”€â”€â”€ App Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -204,7 +207,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Simulation service callback
     _simService.onRouteCompleted = () {
       if (mounted) {
-        _simRunning = false;
+        _stopSimulation();
+        _stopTimer();
+        _isTracking = false;
+        _saveSession(); // Save trip upon completion
+        _activeRoute = null;
         _voice.speak('You have arrived at your destination!');
       }
     };
@@ -251,16 +258,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _voice.onNavigationStopped = () {
       if (mounted) {
-        _activeRoute = null;
         if (_isSimMode) _stopSimulation();
+        _stopTimer();
+        _isTracking = false;
+        _saveSession();
+        _activeRoute = null;
       }
     };
 
     _voice.onArrived = () {
       if (mounted) {
+        if (_isSimMode) _stopSimulation();
+        _stopTimer();
+        _isTracking = false;
+        _saveSession();
+        _activeRoute = null;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('ðŸŽ¯ You have arrived at your destination!'),
+            content: Text('🎯 You have arrived at your destination!'),
             backgroundColor: Color(0xFF00C853),
             duration: Duration(seconds: 4),
           ),
@@ -618,13 +633,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _saveSession() async {
     if (_elapsed.inSeconds > 0) {
+      // 1. Save locally
       await _historyService.saveSession(
         distance: _totalDistance,
         maxSpeed: _maxSpeed,
         avgSpeed: _avgSpeed,
         duration: _elapsed,
-        vehicleType: _vehicleType,
+        vehicleType: VehicleType.car, // Forced car for UI consistency
       );
+
+      // 2. Save to Firebase
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        try {
+          await FirestoreService().saveTrip(
+            userId: uid,
+            distance: _totalDistance,
+            maxSpeed: _maxSpeed,
+            avgSpeed: _avgSpeed,
+            durationSeconds: _elapsed.inSeconds,
+            vehicleType: 'car',
+            destinationName: _activeRoute?.destination,
+          );
+        } catch (e) {
+          debugPrint('Failed to save trip to Firebase: $e');
+        }
+      }
     }
   }
 
@@ -2162,13 +2196,342 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
 
+  String _formatDuration(int seconds) {
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    if (h > 0) return '${h}h ${m}m';
+    if (m > 0) return '${m}m ${s}s';
+    return '${s}s';
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return '—';
+    try {
+      final ts = timestamp as Timestamp;
+      final d = ts.toDate();
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final timeStr = '${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
+      return '${d.day} ${months[d.month - 1]} ${d.year}  •  $timeStr';
+    } catch (_) { return '—'; }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final lightMode = AmbientLightProvider.of(context);
+    final bg      = LightThemePalette.background(lightMode);
+    final textPri = LightThemePalette.textPrimary(lightMode);
+    final textSec = LightThemePalette.textSecondary(lightMode);
+    final accent  = LightThemePalette.accent(lightMode);
+
+    if (uid == null) {
+      return Scaffold(
+        backgroundColor: bg,
+        appBar: AppBar(
+          backgroundColor: bg, foregroundColor: textPri, elevation: 0,
+          title: Text('Journey History', style: TextStyle(color: textPri, fontWeight: FontWeight.bold)),
+        ),
+        body: Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.lock_rounded, color: textSec, size: 56),
+            const SizedBox(height: 16),
+            Text('Please log in to view history', style: TextStyle(color: textSec, fontSize: 16)),
+          ]),
+        ),
+      );
+    }
+
+    final stream = FirebaseFirestore.instance
+        .collection('trips')
+        .where('userId', isEqualTo: uid)
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.history)),
-      body: const Center(child: Text('History will be displayed here')),
+      backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        foregroundColor: textPri,
+        elevation: 0,
+        centerTitle: true,
+        title: Text('Journey History',
+            style: TextStyle(color: textPri, fontWeight: FontWeight.bold, fontSize: 20)),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: stream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(color: accent));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.cloud_off_rounded, color: textSec, size: 56),
+              const SizedBox(height: 12),
+              Text('Failed to load trips', style: TextStyle(color: textSec)),
+            ]));
+          }
+
+          final filtered = snapshot.data?.docs ?? [];
+
+          // Aggregate stats
+          double totalDist = 0, maxSpd = 0, totalAvg = 0;
+          int totalSecs = 0;
+          for (final d in filtered) {
+            final data = d.data() as Map<String, dynamic>;
+            totalDist += (data['distance'] as num? ?? 0).toDouble();
+            totalSecs += (data['durationSeconds'] as num? ?? 0).toInt();
+            final spd = (data['maxSpeed'] as num? ?? 0).toDouble();
+            if (spd > maxSpd) maxSpd = spd;
+            totalAvg += (data['avgSpeed'] as num? ?? 0).toDouble();
+          }
+          final avgSpd = filtered.isNotEmpty ? totalAvg / filtered.length : 0.0;
+
+          return CustomScrollView(
+            slivers: [
+              // ── Stats Banner ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1F26).withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: accent.withValues(alpha: 0.2)),
+                          boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.08), blurRadius: 24)],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _statCell(Icons.route_rounded,        '${filtered.length}',                'Trips',      accent, textPri, textSec),
+                            _statCell(Icons.straighten_rounded,   '${totalDist.toStringAsFixed(1)} km','Distance',   accent, textPri, textSec),
+                            _statCell(Icons.timer_rounded,        _formatDuration(totalSecs),          'Drive Time', accent, textPri, textSec),
+                            _statCell(Icons.speed_rounded,        '${maxSpd.toStringAsFixed(0)} km/h', 'Top Speed',  accent, textPri, textSec),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Count + avg header ──
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Row(
+                    children: [
+                      Text('${filtered.length} ${filtered.length == 1 ? 'trip' : 'trips'}',
+                          style: TextStyle(color: textSec, fontSize: 13, fontWeight: FontWeight.w500)),
+                      if (filtered.isNotEmpty) ...[
+                        const Spacer(),
+                        Text('Avg ${avgSpd.toStringAsFixed(0)} km/h',
+                            style: TextStyle(color: accent, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── Empty state ──
+              if (filtered.isEmpty)
+                SliverFillRemaining(
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.directions_car_outlined,
+                        color: textSec.withValues(alpha: 0.35), size: 80),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No journeys yet',
+                      style: TextStyle(color: textSec, fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Start a journey to see it here',
+                        style: TextStyle(color: textSec.withValues(alpha: 0.55), fontSize: 14)),
+                  ]),
+                ),
+
+              // ── Trip Cards ──
+              if (filtered.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) {
+                        final doc   = filtered[i];
+                        final data  = doc.data() as Map<String, dynamic>;
+                        
+                        // Extract destination name (optional)
+                        final destName = data['destinationName'] as String?;
+                        final tripTitle = destName != null && destName.isNotEmpty
+                            ? 'Trip to $destName'
+                            : 'Free Drive';
+
+                        final vColor = const Color(0xFF00CFFF); // App accent color for cars
+                        final dist  = (data['distance'] as num?)?.toStringAsFixed(2) ?? '0.00';
+                        final maxS  = (data['maxSpeed'] as num?)?.toStringAsFixed(0) ?? '0';
+                        final avgS  = (data['avgSpeed'] as num?)?.toStringAsFixed(0) ?? '0';
+                        final dur   = _formatDuration((data['durationSeconds'] as num?)?.toInt() ?? 0);
+                        final date  = _formatDate(data['timestamp']);
+
+                        return Dismissible(
+                          key: Key(doc.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF4444).withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            child: const Icon(Icons.delete_rounded, color: Colors.white, size: 28),
+                          ),
+                          confirmDismiss: (_) async {
+                            return await showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                backgroundColor: const Color(0xFF2A2A2A),
+                                title: const Text('Delete trip?', style: TextStyle(color: Colors.white)),
+                                content: const Text('This action cannot be undone.',
+                                    style: TextStyle(color: Colors.white70)),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: Text('Cancel', style: TextStyle(color: textSec)),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          onDismissed: (_) async {
+                            await FirebaseFirestore.instance
+                                .collection('trips').doc(doc.id).delete();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                content: Text('Trip deleted'),
+                                backgroundColor: Color(0xFF2A2A2A),
+                                behavior: SnackBarBehavior.floating,
+                              ));
+                            }
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1B22),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: vColor.withValues(alpha: 0.2)),
+                              boxShadow: [BoxShadow(
+                                color: vColor.withValues(alpha: 0.07),
+                                blurRadius: 16, offset: const Offset(0, 4),
+                              )],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header row
+                                  Row(children: [
+                                    Container(
+                                      width: 44, height: 44,
+                                      decoration: BoxDecoration(
+                                        color: vColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: vColor.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Icon(Icons.directions_car_rounded, color: vColor, size: 22),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(tripTitle,
+                                              style: TextStyle(color: textPri, fontSize: 16,
+                                                  fontWeight: FontWeight.bold),
+                                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 2),
+                                          Text(date,
+                                              style: TextStyle(color: textSec, fontSize: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: vColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(dur,
+                                          style: TextStyle(color: vColor, fontSize: 12,
+                                              fontWeight: FontWeight.bold)),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 12),
+                                  // Stats row
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.03),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      children: [
+                                        _miniStat(Icons.speed_rounded,       '$maxS km/h', 'Max Speed', textPri, textSec, accent),
+                                        Container(width: 1, height: 30, color: textSec.withValues(alpha: 0.15)),
+                                        _miniStat(Icons.trending_up_rounded, '$avgS km/h', 'Avg Speed', textPri, textSec, accent),
+                                        Container(width: 1, height: 30, color: textSec.withValues(alpha: 0.15)),
+                                        _miniStat(Icons.route_rounded,       '$dist km',   'Distance',  textPri, textSec, accent),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      childCount: filtered.length,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
+  }
+
+  Widget _statCell(IconData icon, String value, String label,
+      Color accent, Color textPri, Color textSec) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: accent, size: 20),
+      const SizedBox(height: 6),
+      Text(value, style: TextStyle(color: textPri, fontSize: 14, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 2),
+      Text(label, style: TextStyle(color: textSec, fontSize: 10)),
+    ]);
+  }
+
+  Widget _miniStat(IconData icon, String value, String label,
+      Color textPri, Color textSec, Color accent) {
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, color: accent, size: 14),
+      const SizedBox(height: 4),
+      Text(value, style: TextStyle(color: textPri, fontSize: 12, fontWeight: FontWeight.w700)),
+      Text(label, style: TextStyle(color: textSec, fontSize: 10)),
+    ]);
   }
 }
 
