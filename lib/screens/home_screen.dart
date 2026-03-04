@@ -20,6 +20,7 @@ import '../services/speed_limit_service.dart';
 import '../services/simulation_service.dart';
 
 import 'profile_screen.dart';
+import 'car_pairing_screen.dart';
 import 'fatigue_detection_screen.dart';
 import 'tpms_screen.dart';
 import '../services/incident_service.dart';
@@ -137,6 +138,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final ValueNotifier<bool> _simRunningNotifier = ValueNotifier<bool>(false);
   bool get _simRunning => _simRunningNotifier.value;
   set _simRunning(bool val) => _simRunningNotifier.value = val;
+
+  // ── Active Vehicle (from QR) ────────────────────────────────────────────────
+  final ValueNotifier<Map<String, String>?> _activeVehicleNotifier = ValueNotifier<Map<String, String>?>(null);
+  Map<String, String>? get _activeVehicle => _activeVehicleNotifier.value;
+  set _activeVehicle(Map<String, String>? val) => _activeVehicleNotifier.value = val;
 
   // ── Draggable bottom panel ──────────────────────────────────────────
   static const double _panelFull = 160.0;
@@ -1075,6 +1081,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       ),
+                      Tooltip(
+                        message: 'Link Vehicle',
+                        child: IconButton(
+                          icon: Icon(Icons.qr_code_scanner_rounded, color: textPri),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const CarPairingScreen()),
+                            );
+                            if (result != null && result is Map<String, String>) {
+                              _activeVehicle = result;
+                            }
+                          },
+                        ),
+                      ),
                       IconButton(
                         icon: Icon(Icons.history, color: textPri),
                         onPressed: () => Navigator.push(
@@ -1094,6 +1116,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
             // ── Speed Limit Banner ────────────────────────────────
             _buildSpeedLimitBanner(accent, textPri),
+
+            // ── Active Vehicle Badge ──────────────────────────────
+            _buildActiveVehicleBadge(accent, textPri, textSec),
 
             // ── GPS + Voice Status Row ────────────────────────────
             Padding(
@@ -1235,7 +1260,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               children: [
                                 // Speed Circle
                                 GestureDetector(
-                                  onTap: _onStartStopPressed,
+                                  // Removed onTap to prevent accidentally stopping the journey
                                   child: ValueListenableBuilder2<double, bool>(
                                     _currentSpeedNotifier,
                                     _isOverLimitNotifier,
@@ -1566,9 +1591,112 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+  Widget _buildActiveVehicleBadge(Color accent, Color textPri, Color textSec) {
+    return ValueListenableBuilder<Map<String, String>?>(
+      valueListenable: _activeVehicleNotifier,
+      builder: (context, vehicle, _) {
+        if (vehicle == null) return const SizedBox.shrink();
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                accent.withAlpha(38), // 0.15 * 255 = 38.25
+                const Color(0xFF1E1F26).withAlpha(204), // 0.8 * 255 = 204
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: accent.withAlpha(76), width: 1.5), // 0.3 * 255 = 76.5
+            boxShadow: [
+              BoxShadow(
+                color: accent.withAlpha(25), // 0.1 * 255 = 25.5
+                blurRadius: 20,
+                spreadRadius: 2,
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accent.withAlpha(25), // 0.1 * 255 = 25.5
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.directions_car_filled_rounded, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'CONNECTED VEHICLE',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${vehicle['vehicleId']} â€¢ ${vehicle['ownerName']}',
+                      style: TextStyle(
+                        color: textPri,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Disconnect Button
+              GestureDetector(
+                onTap: () {
+                  _activeVehicle = null;
+                  _voice.speak('Vehicle disconnected. Returning to standalone mode.');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withAlpha(25), // 0.1 * 255 = 25.5
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.redAccent.withAlpha(76)), // 0.3 * 255 = 76.5
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.link_off_rounded, color: Colors.redAccent, size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        'UNLINK',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
   // â•‘  Simulation Speed Slider                                                 â•‘
-  // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   Widget _buildSimSpeedSlider(Color accent, Color textPri, Color textSec) {
     final l10n = AppLocalizations.of(context)!;
