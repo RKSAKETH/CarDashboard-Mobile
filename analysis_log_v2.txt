@@ -1,0 +1,71 @@
+﻿Analyzing app...                                                
+
+warning - The declaration '_isFatigued' isn't referenced - lib\screens\fatigue_detection_screen.dart:33:12 - unused_element
+   info - Unnecessary use of multiple underscores - lib\screens\fatigue_detection_screen.dart:142:28 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\fatigue_detection_screen.dart:280:35 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\fatigue_detection_screen.dart:332:38 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\fatigue_detection_screen.dart:414:38 - unnecessary_underscores
+   info - The private field _vehicleType could be 'final' - lib\screens\home_screen.dart:48:15 - prefer_final_fields
+warning - The value of the field '_vehicleType' isn't used - lib\screens\home_screen.dart:48:15 - unused_field
+warning - The declaration '_satellites' isn't referenced - lib\screens\home_screen.dart:78:11 - unused_element
+warning - The declaration '_hasGPS' isn't referenced - lib\screens\home_screen.dart:82:12 - unused_element
+warning - The declaration '_voiceStatus' isn't referenced - lib\screens\home_screen.dart:125:14 - unused_element
+warning - The declaration '_activeVehicle' isn't referenced - lib\screens\home_screen.dart:145:28 - unused_element
+warning - The declaration '_showSearch' isn't referenced - lib\screens\home_screen.dart:166:12 - unused_element
+warning - The declaration '_placeSuggestions' isn't referenced - lib\screens\home_screen.dart:171:33 - unused_element
+warning - The declaration '_searchLoading' isn't referenced - lib\screens\home_screen.dart:175:12 - unused_element
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:856:59 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:886:57 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:905:63 - unnecessary_underscores
+warning - The value of the local variable 'isListening' isn't used - lib\screens\home_screen.dart:1033:11 - unused_local_variable
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:1132:42 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:1206:44 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\home_screen.dart:1584:32 - unnecessary_underscores
+warning - Unused import: '../services/ambient_light_service.dart' - lib\screens\intro_screen.dart:6:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:109:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:126:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:259:81 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:264:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:267:81 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:352:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:362:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\login_screen.dart:394:49 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:95:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:100:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:102:10 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\auth_service.dart:194:7 - avoid_print
+warning - Unused import: 'package:firebase_auth/firebase_auth.dart' - lib\services\firestore_service.dart:2:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:51:7 - avoid_print
+   info - Use the null-aware marker '?' rather than a null check via an 'if' - lib\services\firestore_service.dart:81:9 - use_null_aware_elements
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:85:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:88:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:108:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:163:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:172:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:174:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:195:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:197:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:225:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\firestore_service.dart:249:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\location_service.dart:15:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\location_service.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\location_service.dart:32:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\location_service.dart:36:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\services\location_service.dart:40:7 - avoid_print
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:149:23 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:590:25 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\widgets\app_drawer.dart:603:25 - deprecated_member_use
+  error - 'accentColor' isn't a field in the enclosing class - lib\widgets\gauge_view.dart:18:5 - initializing_formal_for_non_existent_field
+  error - The getter 'accentColor' isn't defined for the type 'GaugeView' - lib\widgets\gauge_view.dart:109:39 - undefined_getter
+   info - Unnecessary use of multiple underscores - lib\widgets\map_view.dart:563:26 - unnecessary_underscores
+warning - Unused import: 'package:flutter/material.dart' - test\widget_test.dart:8:8 - unused_import
+
+flutter : 60 issues found. (ran in 3.8s)
+At line:1 char:1
++ flutter analyze > analysis_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (60 issues fou 
+   nd. (ran in 3.8s):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

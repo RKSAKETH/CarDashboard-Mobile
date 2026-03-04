@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'accelerometer_service.dart';
 
 /// Assign this to MaterialApp.navigatorKey — lets the service
@@ -35,6 +36,10 @@ class IncidentService {
   AccelerometerService? _accel;
   bool _running = false;
   bool _incidentActive = false;
+  bool _notificationsInitialized = false;
+
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   double _threshold = 2.5;
   double get threshold => _threshold;
@@ -81,6 +86,7 @@ class IncidentService {
       onImpactDetected: (peakG) {
         if (_incidentActive) return;
         _incidentActive = true;
+        _showSimpleNotification();
         _showGlobalOverlay(peakG);
       },
     );
@@ -107,6 +113,45 @@ class IncidentService {
           if (!_logCtrl.isClosed) _logCtrl.add(null);
         },
       ),
+    );
+  }
+
+  // ── Simple SOS Notification ────────────────────────────────────
+
+  Future<void> _showSimpleNotification() async {
+    if (!_notificationsInitialized) {
+      const AndroidInitializationSettings androidInit =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const DarwinInitializationSettings iosInit =
+          DarwinInitializationSettings();
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      );
+      await _notificationsPlugin.initialize(
+        settings: initSettings,
+      );
+      _notificationsInitialized = true;
+    }
+
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      'Emergency',
+      'Emergency',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidDetails,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await _notificationsPlugin.show(
+      id: 0,
+      title: '🚨 COLLISION DETECTED',
+      body: 'Emergency Black Box logging has started.',
+      notificationDetails: platformChannelSpecifics,
     );
   }
 }

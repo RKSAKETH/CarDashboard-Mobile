@@ -11,6 +11,7 @@ import '../widgets/map_view.dart';
 import '../widgets/music_player_view.dart';
 import '../widgets/app_drawer.dart' show AppDrawer, SettingsScreen;
 import '../widgets/ambient_light_overlay.dart';
+import '../services/ambient_light_service.dart';
 import '../l10n/app_localizations.dart';
 import '../models/speed_data.dart';
 import '../services/location_service.dart';
@@ -279,11 +280,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _isTracking = false;
         _saveSession();
         _activeRoute = null;
+
+        final mode = AmbientLightProvider.of(context);
+        final accent = LightThemePalette.accent(mode);
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎯 You have arrived at your destination!'),
-            backgroundColor: Color(0xFF00C853),
-            duration: Duration(seconds: 4),
+          SnackBar(
+            content: const Text('🎯 You have arrived at your destination!'),
+            backgroundColor: accent,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -333,6 +338,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _requestPermissions() async {
     try {
+      await Permission.notification.request();
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted) {
@@ -733,11 +739,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _placeSuggestions = [];
   }
 
-  Widget _buildSearchOverlay() {
-    final lightMode = AmbientLightProvider.of(context);
-    final accent = LightThemePalette.accent(lightMode);
-    final textPri = LightThemePalette.textPrimary(lightMode);
-    final textSec = LightThemePalette.textSecondary(lightMode);
+  Widget _buildSearchOverlay(LightMode lightMode, Color accent, Color textPri, Color textSec) {
 
     return ValueListenableBuilder2<bool, RouteInfo?>(
       _showSearchNotifier,
@@ -1201,7 +1203,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ValueListenableBuilder2<double, bool>(
                               _currentSpeedNotifier,
                               _isOverLimitNotifier,
-                              (context, _, __) => _buildSpeedWarningWrapper(_buildCurrentView()),
+                              (context, _, __) => _buildSpeedWarningWrapper(_buildCurrentView(lightMode, accent, textPri, textSec)),
                             ),
 
                             ValueListenableBuilder<AppMode>(
@@ -1443,11 +1445,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     valueListenable: _simSpeedKmhNotifier,
                     builder: (context, simSpeed, _) => Row(
                       children: [
-                        const Icon(Icons.directions_car, size: 14, color: Color(0xFF00FF88)),
+                        Icon(Icons.directions_car, size: 14, color: accent),
                         const SizedBox(width: 4),
                         Text(
                           '${simSpeed.toInt()} km/h',
-                          style: const TextStyle(color: Color(0xFF00FF88), fontSize: 12, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -1809,7 +1811,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // â•‘  Current View (Gauge / Digital / Map)                                    â•‘
   // â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-  Widget _buildCurrentView() {
+  Widget _buildCurrentView(LightMode lightMode, Color accent, Color textPri, Color textSec) {
     Widget child;
     switch (_currentIndex) {
       case 0:
@@ -1828,6 +1830,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 hasGPS: hasGPS,
                 isOverLimit: over,
                 speedLimit: limit,
+                accentColor: accent,
               ),
             ),
           ),
@@ -1854,7 +1857,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     isOverLimit: over,
                     isSimulation: _isSimMode,
                   ),
-                  _buildSearchOverlay(),
+                  _buildSearchOverlay(lightMode, accent, textPri, textSec),
                 ],
               ),
             ),
@@ -1867,10 +1870,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _isOverLimitNotifier,
           (context, speed, over) => MusicPlayerView(
             key: const ValueKey(2),
-            accent: const Color(0xFF00C2FF),
-            bg: const Color(0xFF14151A),
-            textPri: Colors.white,
-            textSec: Colors.white54,
+            accent: accent,
+            bg: LightThemePalette.background(lightMode),
+            textPri: textPri,
+            textSec: textSec,
             speed: speed,
             isOverLimit: over,
           ),
@@ -1971,9 +1974,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Expanded(flex: 3, child: _buildCompactStat(Icons.timer, _formatDuration(elapsed), '', accent, textPri, textSec)),
                             Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                            Expanded(flex: 2, child: _buildCompactStat(Icons.access_time_filled, route.durationText, 'ETA', const Color(0xFF00E5FF), textPri, textSec)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.access_time_filled, route.durationText, 'ETA', accent, textPri, textSec)),
                             Container(width: 1, height: 24, color: accent.withAlpha(40)),
-                            Expanded(flex: 2, child: _buildCompactStat(Icons.route, route.distanceText, l10n.distance, const Color(0xFF00E5FF), textPri, textSec)),
+                            Expanded(flex: 2, child: _buildCompactStat(Icons.route, route.distanceText, l10n.distance, accent, textPri, textSec)),
                             Container(width: 1, height: 24, color: accent.withAlpha(40)),
                             Expanded(
                               flex: 3,
@@ -1986,7 +1989,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       mainAxisSize: MainAxisSize.min,
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        const Icon(Icons.flag_rounded, color: Color(0xFF00E5FF), size: 14),
+                                        const Icon(Icons.flag_rounded, color: Colors.orangeAccent, size: 14),
                                         const SizedBox(width: 4),
                                         Text(route.destination, style: TextStyle(color: textPri, fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1),
                                       ],
@@ -2038,13 +2041,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             color: (mode == AppMode.simulation && route != null)
-                                ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+                                ? (simRunning ? const Color(0xFFFF3B3B) : accent)
                                 : (isTracking ? const Color(0xFFFF3B3B) : accent),
                             borderRadius: BorderRadius.circular(50),
                             boxShadow: [
                               BoxShadow(
                                 color: ((mode == AppMode.simulation && route != null)
-                                        ? (simRunning ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+                                        ? (simRunning ? const Color(0xFFFF3B3B) : accent)
                                         : (isTracking ? const Color(0xFFFF3B3B) : accent))
                                     .withAlpha(80),
                                 blurRadius: 14,
@@ -2118,14 +2121,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: isListening
-                  ? [const Color(0xFF00FF88), const Color(0xFF00C2FF)]
+                  ? [accent, const Color(0xFF00C2FF)]
                   : [const Color(0xFF1E1F26), const Color(0xFF18191E)],
             ),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
                 color: isListening
-                    ? const Color(0xFF00FF88).withAlpha(120)
+                    ? accent.withAlpha(120)
                     : accent.withAlpha(40),
                 blurRadius: 16,
                 spreadRadius: 4,

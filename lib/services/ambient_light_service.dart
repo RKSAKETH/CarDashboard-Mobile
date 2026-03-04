@@ -18,8 +18,8 @@ enum LightMode { day, twilight, night }
 //   • Bright sunlight or open road     → >500 lux (day)
 //   • Garage / dusk / overcast         → 10–200 lux (twilight)
 //   • Dark car interior at night       → <10 lux  (night / red mode)
-const double _kDayThreshold      = 200.0; // lux above which → day
-const double _kTwilightThreshold = 10.0;  // lux below which → night
+const double _kDayThreshold      = 100.0; // lux above which → day (Blue)
+const double _kTwilightThreshold = 50.0;  // lux below which → purple/night
 
 /// Hysteresis buffer: how far lux must move past a boundary before switching.
 /// This prevents flicker when, e.g., a hand briefly covers the sensor.

@@ -1,0 +1,133 @@
+﻿Launching lib\main.dart on RMX3430 in debug mode...
+Running Gradle task 'assembleDebug'...                          
+flutter : lib/screens/home_screen.dart:741:30: Error: Type 
+'LightMode' not found.
+At line:1 char:1
++ flutter run > build_log.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (lib/screens/h 
+   om...ode' not found.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  Widget _buildSearchOverlay(LightMode lightMode, Color 
+accent, Color textPri, Color textSec) {
+                             ^^^^^^^^^
+lib/screens/home_screen.dart:1813:28: Error: Type 
+'LightMode' not found.
+  Widget _buildCurrentView(LightMode lightMode, Color 
+accent, Color textPri, Color textSec) {
+                           ^^^^^^^^^
+lib/screens/home_screen.dart:741:30: Error: 'LightMode' 
+isn't a type.
+  Widget _buildSearchOverlay(LightMode lightMode, Color 
+accent, Color textPri, Color textSec) {
+                             ^^^^^^^^^
+lib/screens/home_screen.dart:1813:28: Error: 'LightMode' 
+isn't a type.
+  Widget _buildCurrentView(LightMode lightMode, Color 
+accent, Color textPri, Color textSec) {
+                           ^^^^^^^^^
+lib/screens/home_screen.dart:1832:17: Error: No named 
+parameter with the name 'accentColor'.
+                accentColor: accent,
+                ^^^^^^^^^^^
+lib/widgets/gauge_view.dart:11:9: Context: Found this 
+candidate, but the arguments don't match.
+  const GaugeView({
+        ^^^^^^^^^
+lib/screens/tpms_screen.dart:459:31: Error: The getter 
+'lightMode' isn't defined for the type '_TpmsScreenState'.
+ - '_TpmsScreenState' is from 
+'package:app/screens/tpms_screen.dart' 
+('lib/screens/tpms_screen.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'lightMode'.
+        'Γ£à  Each tyre turns ${lightMode == LightMode.day 
+? "BLUE" : "PURPLE"} only when its own phone is 
+broadcasting\n'
+                              ^^^^^^^^^
+lib/screens/tpms_screen.dart:459:44: Error: The getter 
+'LightMode' isn't defined for the type '_TpmsScreenState'.
+ - '_TpmsScreenState' is from 
+'package:app/screens/tpms_screen.dart' 
+('lib/screens/tpms_screen.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'LightMode'.
+        'Γ£à  Each tyre turns ${lightMode == LightMode.day 
+? "BLUE" : "PURPLE"} only when its own phone is 
+broadcasting\n'
+                                           ^^^^^^^^^
+lib/screens/tpms_screen.dart:460:78: Error: The getter 
+'lightMode' isn't defined for the type '_TpmsScreenState'.
+ - '_TpmsScreenState' is from 
+'package:app/screens/tpms_screen.dart' 
+('lib/screens/tpms_screen.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'lightMode'.
+        '≡ƒö┤  Turning off a tyre phone only flattens THAT 
+tyre (others stay ${lightMode == LightMode.day ? "BLUE" : 
+"PURPLE"})',
+                                                           
+                  ^^^^^^^^^
+lib/screens/tpms_screen.dart:460:91: Error: The getter 
+'LightMode' isn't defined for the type '_TpmsScreenState'.
+ - '_TpmsScreenState' is from 
+'package:app/screens/tpms_screen.dart' 
+('lib/screens/tpms_screen.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'LightMode'.
+        '≡ƒö┤  Turning off a tyre phone only flattens THAT 
+tyre (others stay ${lightMode == LightMode.day ? "BLUE" : 
+"PURPLE"})',
+                                                           
+                               ^^^^^^^^^
+lib/widgets/map_view.dart:173:18: Error: The getter 
+'AmbientLightProvider' isn't defined for the type 
+'_MapViewState'.
+ - '_MapViewState' is from 
+'package:app/widgets/map_view.dart' 
+('lib/widgets/map_view.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'AmbientLightProvider'.
+    final mode = AmbientLightProvider.of(context);
+                 ^^^^^^^^^^^^^^^^^^^^
+lib/widgets/map_view.dart:174:20: Error: The getter 
+'LightThemePalette' isn't defined for the type 
+'_MapViewState'.
+ - '_MapViewState' is from 
+'package:app/widgets/map_view.dart' 
+('lib/widgets/map_view.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'LightThemePalette'.
+    final accent = LightThemePalette.accent(mode);
+                   ^^^^^^^^^^^^^^^^^
+lib/widgets/map_view.dart:194:17: Error: The getter 
+'LightMode' isn't defined for the type '_MapViewState'.
+ - '_MapViewState' is from 
+'package:app/widgets/map_view.dart' 
+('lib/widgets/map_view.dart').
+Try correcting the name to the name of an existing getter, 
+or defining a getter or field named 'LightMode'.
+        mode == LightMode.day ? BitmapDescriptor.hueAzure 
+: BitmapDescriptor.hueViolet,
+                ^^^^^^^^^
+Target kernel_snapshot_program failed: Exception
+
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileFlutterBuildDebug'.
+> Process 'command 'C:\Users\krish\Downloads\flutter_window
+s_3.38.3-stable\flutter\bin\flutter.bat'' finished with 
+non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 9s
+Running Gradle task 'assembleDebug'...                             10.2s
+Error: Gradle task assembleDebug failed with exit code 1

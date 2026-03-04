@@ -332,9 +332,9 @@ class LightThemePalette {
   static Color accent(LightMode mode) {
     if (!isDarkModeNotifier.value) return const Color(0xFF00C2FF); // Electric Blue
     return switch (mode) {
-      LightMode.day      => const Color(0xFF00FF88), // Electric Green
-      LightMode.twilight => const Color(0xFF00C2FF), // Electric Blue
-      LightMode.night    => const Color(0xFFFF7A00), // Soft Orange
+      LightMode.day      => const Color(0xFF00C2FF), // Electric Blue
+      LightMode.twilight => const Color(0xFF9155FD), // Deep Purple
+      LightMode.night    => const Color(0xFF9155FD), // Deep Purple
     };
   }
 
@@ -387,15 +387,15 @@ class LightThemePalette {
 
   // ── Human-readable label for the current mode ──
   static String label(LightMode mode) => switch (mode) {
-        LightMode.day      => '☀️ Day Mode',
-        LightMode.twilight => '🌆 Twilight Mode',
-        LightMode.night    => '🌙 Night (Red-Shift)',
+        LightMode.day      => '☀️ Day Mode (Blue)',
+        LightMode.twilight => '🌆 Twilight (Purple)',
+        LightMode.night    => '🌙 Night Mode (Purple)',
       };
 
   // ── Material icon for the current mode ──
   static IconData icon(LightMode mode) => switch (mode) {
         LightMode.day      => Icons.wb_sunny,
-        LightMode.twilight => Icons.wb_twilight,
+        LightMode.twilight => Icons.dark_mode,
         LightMode.night    => Icons.nightlight_round,
       };
 }

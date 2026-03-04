@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lottie/lottie.dart' hide Marker;
 import '../services/voice_assistant_service.dart';
+import '../widgets/ambient_light_overlay.dart';
+import '../services/ambient_light_service.dart';
 
 const _kDarkMapStyle = '''
 [
@@ -170,10 +172,13 @@ class _MapViewState extends State<MapView> {
       return;
     }
 
+    final mode = AmbientLightProvider.of(context);
+    final accent = LightThemePalette.accent(mode);
+
     final routePolyline = Polyline(
       polylineId: const PolylineId('route'),
       points: route.polylinePoints,
-      color: const Color(0xFF00FF88),
+      color: accent,
       width: 6,
       endCap: Cap.roundCap,
       startCap: Cap.roundCap,
@@ -187,7 +192,9 @@ class _MapViewState extends State<MapView> {
         title: route.destination,
         snippet: '${route.distanceText} · ${route.durationText}',
       ),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      icon: BitmapDescriptor.defaultMarkerWithHue(
+        mode == LightMode.day ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueViolet,
+      ),
     );
 
     final baseMarkers = <Marker>{destMarker};

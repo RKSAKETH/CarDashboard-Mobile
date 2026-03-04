@@ -5,6 +5,7 @@ import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../services/tpms_service.dart';
 import '../widgets/ambient_light_overlay.dart';
+import '../services/ambient_light_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TPMS Screen  –  dual mode: Dashboard OR Tire Monitor
@@ -166,11 +167,11 @@ class _TpmsScreenState extends State<TpmsScreen>
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: scanning
-                          ? const Color(0xFF00FF88)
+                          ? accent
                           : Colors.grey,
                       boxShadow: scanning
                           ? [BoxShadow(
-                              color: const Color(0xFF00FF88).withAlpha(140),
+                              color: accent.withAlpha(140),
                               blurRadius: 6)]
                           : [],
                     ),
@@ -271,7 +272,7 @@ class _TpmsScreenState extends State<TpmsScreen>
         // Status banner
         _buildStatusBanner(accent, textSec),
         // Debug radar
-        if (_showDebug) _buildDebugPanel(textSec),
+        if (_showDebug) _buildDebugPanel(accent, textSec),
         const SizedBox(height: 8),
         // 4-tyre view — AnimatedBuilder listens to ALL 4 notifiers
         // so any individual tyre change triggers a rebuild
@@ -314,10 +315,10 @@ class _TpmsScreenState extends State<TpmsScreen>
                       childAspectRatio: 2.1,
                       physics: const NeverScrollableScrollPhysics(),
                       children: [
-                        _TyreCard(data: fl, pulseAnim: _pulseAnim),
-                        _TyreCard(data: fr, pulseAnim: _pulseAnim),
-                        _TyreCard(data: rl, pulseAnim: _pulseAnim),
-                        _TyreCard(data: rr, pulseAnim: _pulseAnim),
+                        _TyreCard(data: fl, pulseAnim: _pulseAnim, healthyColor: accent),
+                        _TyreCard(data: fr, pulseAnim: _pulseAnim, healthyColor: accent),
+                        _TyreCard(data: rl, pulseAnim: _pulseAnim, healthyColor: accent),
+                        _TyreCard(data: rr, pulseAnim: _pulseAnim, healthyColor: accent),
                       ],
                     ),
                   ),
@@ -326,13 +327,13 @@ class _TpmsScreenState extends State<TpmsScreen>
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 20, vertical: 4),
-                  child: _SignalRow(tire: fl, textSec: textSec),
+                  child: _SignalRow(tire: fl, textSec: textSec, healthyColor: accent),
                 ),
               ]);
             },
           ),
         ),
-        _buildLegend(textSec),
+        _buildLegend(accent, textSec),
         const SizedBox(height: 10),
         _buildDashboardTip(textSec),
         const SizedBox(height: 12),
@@ -373,7 +374,7 @@ class _TpmsScreenState extends State<TpmsScreen>
     );
   }
 
-  Widget _buildDebugPanel(Color textSec) {
+  Widget _buildDebugPanel(Color accent, Color textSec) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.all(12),
@@ -405,7 +406,7 @@ class _TpmsScreenState extends State<TpmsScreen>
             final isT = d.startsWith('TIRE_');
             return Text(d,
                 style: TextStyle(
-                  color: isT ? const Color(0xFF00FF88) : textSec,
+                  color: isT ? accent : textSec,
                   fontSize: 11,
                   fontWeight:
                       isT ? FontWeight.bold : FontWeight.normal,
@@ -415,11 +416,11 @@ class _TpmsScreenState extends State<TpmsScreen>
     );
   }
 
-  Widget _buildLegend(Color textSec) {
-    const items = [
-      (Color(0xFF00FF88), 'Good 32 PSI'),
-      (Color(0xFFFFD60A), 'Low'),
-      (Color(0xFFFF453A), 'Flat'),
+  Widget _buildLegend(Color accent, Color textSec) {
+    final items = [
+      (accent, 'Good 32 PSI'),
+      (const Color(0xFFFFD60A), 'Low'),
+      (const Color(0xFFFF453A), 'Flat'),
     ];
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -446,6 +447,7 @@ class _TpmsScreenState extends State<TpmsScreen>
   }
 
   Widget _buildDashboardTip(Color textSec) {
+    final lightMode = AmbientLightProvider.of(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(12),
@@ -456,8 +458,8 @@ class _TpmsScreenState extends State<TpmsScreen>
       ),
       child: Text(
         '📡  Each tyre phone: open app → Tire Monitor tab → pick position → Start\n'
-        '✅  Each tyre turns GREEN only when its own phone is broadcasting\n'
-        '🔴  Turning off a tyre phone only flattens THAT tyre (others stay green)',
+        '✅  Each tyre turns ${lightMode == LightMode.day ? "BLUE" : "PURPLE"} only when its own phone is broadcasting\n'
+        '🔴  Turning off a tyre phone only flattens THAT tyre (others stay ${lightMode == LightMode.day ? "BLUE" : "PURPLE"})',
         style: TextStyle(color: textSec, fontSize: 11, height: 1.6),
       ),
     );
@@ -479,19 +481,19 @@ class _TpmsScreenState extends State<TpmsScreen>
           padding: const EdgeInsets.symmetric(vertical: 32),
           decoration: BoxDecoration(
             color: _advertising
-                ? const Color(0xFF00FF88).withAlpha(20)
+                ? accent.withAlpha(20)
                 : const Color(0xFF1E1F26),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: _advertising
-                  ? const Color(0xFF00FF88).withAlpha(120)
+                  ? accent.withAlpha(120)
                   : Colors.white.withAlpha(20),
               width: 2,
             ),
             boxShadow: _advertising
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF00FF88).withAlpha(50),
+                      color: accent.withAlpha(50),
                       blurRadius: 30,
                       spreadRadius: 4,
                     )
@@ -504,7 +506,7 @@ class _TpmsScreenState extends State<TpmsScreen>
                   ? Icons.sensors_rounded
                   : Icons.sensors_off_rounded,
               color: _advertising
-                  ? const Color(0xFF00FF88)
+                  ? accent
                   : Colors.white30,
               size: 56,
             ),
@@ -515,7 +517,7 @@ class _TpmsScreenState extends State<TpmsScreen>
                   : 'Not Broadcasting',
               style: TextStyle(
                 color: _advertising
-                    ? const Color(0xFF00FF88)
+                    ? accent
                     : Colors.white38,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -525,8 +527,8 @@ class _TpmsScreenState extends State<TpmsScreen>
               const SizedBox(height: 6),
               Text(
                 _selectedTire,
-                style: const TextStyle(
-                  color: Color(0xFF00FF88),
+                style: TextStyle(
+                  color: accent,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2,
@@ -537,13 +539,13 @@ class _TpmsScreenState extends State<TpmsScreen>
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00FF88).withAlpha(15),
+                  color: accent.withAlpha(15),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
+                child: Text(
                   '📡  Dashboard can now detect this phone',
                   style:
-                      TextStyle(color: Color(0xFF00FF88), fontSize: 11),
+                      TextStyle(color: accent, fontSize: 11),
                 ),
               ),
             ],
@@ -599,7 +601,7 @@ class _TpmsScreenState extends State<TpmsScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: _advertising
                   ? const Color(0xFFFF453A)
-                  : const Color(0xFF00FF88),
+                  : accent,
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -695,10 +697,11 @@ class _TpmsScreenState extends State<TpmsScreen>
 class _TyreCard extends StatelessWidget {
   final TireData data;
   final Animation<double> pulseAnim;
-  const _TyreCard({required this.data, required this.pulseAnim});
+  final Color healthyColor;
+  const _TyreCard({required this.data, required this.pulseAnim, required this.healthyColor});
 
-  static Color _c(TireStatus s) => switch (s) {
-        TireStatus.healthy => const Color(0xFF00FF88),
+  Color _c(TireStatus s) => switch (s) {
+        TireStatus.healthy => healthyColor,
         TireStatus.low     => const Color(0xFFFFD60A),
         TireStatus.flat    => const Color(0xFFFF453A),
       };
@@ -789,10 +792,11 @@ class _TyreCard extends StatelessWidget {
 class _SignalRow extends StatelessWidget {
   final TireData tire;
   final Color    textSec;
-  const _SignalRow({required this.tire, required this.textSec});
+  final Color    healthyColor;
+  const _SignalRow({required this.tire, required this.textSec, required this.healthyColor});
 
-  static Color _c(TireStatus s) => switch (s) {
-        TireStatus.healthy => const Color(0xFF00FF88),
+  Color _c(TireStatus s) => switch (s) {
+        TireStatus.healthy => healthyColor,
         TireStatus.low     => const Color(0xFFFFD60A),
         TireStatus.flat    => const Color(0xFFFF453A),
       };

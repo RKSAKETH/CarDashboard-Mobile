@@ -7,6 +7,7 @@ class GaugeView extends StatefulWidget {
   final bool hasGPS;
   final bool isOverLimit;
   final int? speedLimit;
+  final Color? accentColor;
 
   const GaugeView({
     super.key,
@@ -15,6 +16,7 @@ class GaugeView extends StatefulWidget {
     required this.hasGPS,
     this.isOverLimit = false,
     this.speedLimit,
+    this.accentColor,
   });
 
   @override
@@ -105,6 +107,7 @@ class _GaugeViewState extends State<GaugeView>
                   isOverLimit: widget.isOverLimit,
                   speedLimit: widget.speedLimit,
                   pulseValue: _scaleAnim.value - 1.0,
+                  accentColor: widget.accentColor ?? const Color(0xFF00FF88),
                 ),
               ),
             );
@@ -124,6 +127,7 @@ class _SpeedometerPainter extends CustomPainter {
   final bool isOverLimit;
   final int? speedLimit;
   final double pulseValue;
+  final Color accentColor;
 
   static const double _maxSpeed = 160.0;
   static const double _startDeg = 135.0;
@@ -163,6 +167,7 @@ class _SpeedometerPainter extends CustomPainter {
     this.isOverLimit = false,
     this.speedLimit,
     this.pulseValue = 0.0,
+    required this.accentColor,
   });
 
   double _deg(double deg) => deg * pi / 180;
@@ -193,7 +198,7 @@ class _SpeedometerPainter extends CustomPainter {
     final speedGlowIntensity = fraction * 0.5 + pulseValue * 15;
     
     if (fraction > 0) {
-      final sweepColor = isOverLimit ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88);
+      final sweepColor = isOverLimit ? const Color(0xFFFF3B3B) : accentColor;
       
       _glowPaint.color = sweepColor.withValues(alpha: (0.4 + speedGlowIntensity * 0.2).clamp(0.0, 1.0));
       _glowPaint.strokeWidth = 28 + (speedGlowIntensity * 5);
@@ -216,7 +221,7 @@ class _SpeedometerPainter extends CustomPainter {
       final tickLen   = isMajor ? 16.0 : (isMid ? 10.0 : 5.0);
       
       _tickPaint.color = v <= speed 
-          ? (isOverLimit ? const Color(0xFFFF3B3B) : const Color(0xFF00FF88))
+          ? (isOverLimit ? const Color(0xFFFF3B3B) : accentColor)
           : Colors.white24;
       _tickPaint.strokeWidth = isMajor ? 2.5 : (isMid ? 1.5 : 1.0);
 
@@ -295,7 +300,7 @@ class _SpeedometerPainter extends CustomPainter {
           height: 1,
           shadows: [
             Shadow(
-              color: over ? const Color(0xFFFF3B3B).withAlpha(150) : const Color(0xFF00FF88).withAlpha(100),
+              color: over ? const Color(0xFFFF3B3B).withAlpha(150) : accentColor.withAlpha(100),
               blurRadius: 18 + intensity * 10,
             ),
           ],
