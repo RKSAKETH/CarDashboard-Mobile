@@ -21,8 +21,6 @@ import 'profile_screen.dart';
 import 'fatigue_detection_screen.dart';
 import 'tpms_screen.dart';
 import '../services/incident_service.dart';
-import '../services/firestore_service.dart';
-import '../services/auth_service.dart';
 
 // â”€â”€â”€ App Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -627,32 +625,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         duration: _elapsed,
         vehicleType: _vehicleType,
       );
-      // Also save trip to Firestore so it shows in the profile section
-      final user = AuthService().currentUser;
-      if (user != null) {
-        try {
-          await FirestoreService().saveTrip(
-            userId: user.uid,
-            distance: _totalDistance,
-            maxSpeed: _maxSpeed,
-            avgSpeed: _avgSpeed,
-            durationSeconds: _elapsed.inSeconds,
-            vehicleType: _vehicleType.name,
-          );
-          if (mounted) {
-            final l10n = AppLocalizations.of(context)!;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(l10n.tripSaved),
-                duration: const Duration(seconds: 2),
-                backgroundColor: const Color(0xFF00C2FF),
-              ),
-            );
-          }
-        } catch (e) {
-          debugPrint('Error saving trip to Firestore: $e');
-        }
-      }
     }
   }
 
@@ -765,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           Icon(Icons.search_rounded, color: accent, size: 20),
                           const SizedBox(width: 6),
                           Text(
-                            AppLocalizations.of(context)!.searchDestination,
+                            'Search destination',
                             style: TextStyle(color: textSec, fontSize: 13),
                           ),
                         ],
@@ -828,7 +800,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       cursorColor: accent,
                                       decoration: InputDecoration(
                                         hintText:
-                                            AppLocalizations.of(context)!.whereDoYouWantToGo,
+                                            'Where do you want to go?',
                                         hintStyle: TextStyle(
                                             color: textSec, fontSize: 14),
                                         border: InputBorder.none,
@@ -1105,15 +1077,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     (context, hasGPS, sats) => ValueListenableBuilder2<AppMode, bool>(
                       _appModeNotifier,
                       _simRunningNotifier,
-                      (context, mode, simRunning) {
-                        final l10n = AppLocalizations.of(context)!;
-                        return Text(
+                      (context, mode, simRunning) => Text(
                         mode == AppMode.simulation
-                            ? '${l10n.simMode}  •  ${simRunning ? l10n.moving : l10n.idle}'
-                            : '${l10n.gpsStatus}: ${hasGPS ? l10n.yes : l10n.no}  ($sats ${l10n.sat})',
+                            ? 'SIM MODE  •  ${simRunning ? "Moving" : "Idle"}'
+                            : 'GPS: ${hasGPS ? "Yes" : "No"}  ($sats sat)',
                         style: TextStyle(color: textSec, fontSize: 12),
-                      );
-                      },
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -1139,19 +1108,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(width: 4),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 160),
-                            child: Builder(
-                              builder: (context) {
-                                final l10n = AppLocalizations.of(context)!;
-                                // Map internal status keys to localized strings
-                                String displayStatus = status;
-                                if (status == 'Tap mic to speak') displayStatus = l10n.tapMicToSpeak;
-                                else if (status == 'Listening…' || status == 'Listening...') displayStatus = l10n.listening;
-                                return Text(
-                                  displayStatus,
-                                  style: TextStyle(color: status == 'Listening…' ? accent : textSec, fontSize: 11),
-                                  overflow: TextOverflow.ellipsis,
-                                );
-                              },
+                            child: Text(
+                              status,
+                              style: TextStyle(color: status == 'Listening…' ? accent : textSec, fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -1407,7 +1367,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 children: [
                   _modeChip(l10n.dev, Icons.developer_mode, AppMode.dev, currentMode == AppMode.dev, accent, textSec),
                   _modeChip(l10n.simulation, Icons.play_circle_fill, AppMode.simulation, currentMode == AppMode.simulation, accent, textSec),
-                  _modeChip(l10n.live, Icons.navigation, AppMode.live, currentMode == AppMode.live, accent, textSec),
+                  _modeChip('Live', Icons.navigation, AppMode.live, currentMode == AppMode.live, accent, textSec),
                 ],
               ),
             ),
@@ -1941,7 +1901,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 children: [
                                   Text(
                                     (mode == AppMode.simulation && route != null)
-                                        ? (simRunning ? l10n.stop : l10n.startJourney)
+                                        ? (simRunning ? l10n.stop : 'START JOURNEY')
                                         : (isTracking ? l10n.stop : l10n.start),
                                     style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                                   ),

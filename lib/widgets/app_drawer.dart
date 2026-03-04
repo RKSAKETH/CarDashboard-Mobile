@@ -76,7 +76,7 @@ class AppDrawer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        l10n.appTitle,
+                        'Velora Drive',
                         style: TextStyle(
                           color: textPri,
                           fontSize: 20,
@@ -84,7 +84,7 @@ class AppDrawer extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        l10n.gpsSpeedTracker,
+                        'GPS Speed Tracker',
                         style: TextStyle(
                           color: textSec,
                           fontSize: 14,
@@ -105,8 +105,8 @@ class AppDrawer extends StatelessWidget {
                     context,
                     icon: Icons.emoji_events,
                     iconColor: const Color(0xFFFFD700),
-                    title: l10n.premium,
-                    subtitle: l10n.unlockAllFeatures,
+                    title: 'Premium',
+                    subtitle: 'Unlock all features',
                     onTap: () {
                       Navigator.pop(context);
                       _showPremiumDialog(context);
@@ -158,8 +158,8 @@ class AppDrawer extends StatelessWidget {
                     context,
                     icon: Icons.shield,
                     iconColor: const Color(0xFFFF1744),
-                    title: l10n.blackBoxLogger,
-                    subtitle: l10n.blackBoxLoggerSubtitle,
+                    title: 'Black Box Logger',
+                    subtitle: 'Incident detection & SOS',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -175,8 +175,8 @@ class AppDrawer extends StatelessWidget {
                     context,
                     icon: Icons.brightness_auto,
                     iconColor: const Color(0xFFFF8C00),
-                    title: l10n.adaptiveLightUi,
-                    subtitle: l10n.adaptiveLightSubtitle,
+                    title: 'Adaptive Light UI',
+                    subtitle: 'Auto cockpit theme by lux',
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(
@@ -306,11 +306,10 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _showPremiumDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context)!;
-        return AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         title: Row(
           children: [
@@ -322,19 +321,19 @@ class AppDrawer extends StatelessWidget {
             ),
           ],
         ),
-        content: Text(
-          '${l10n.unlockAllFeatures}:\n\n'
+        content: const Text(
+          'Unlock premium features:\n\n'
           '• Ad-free experience\n'
           '• Advanced statistics\n'
           '• Export trip history\n'
           '• Custom themes\n'
           '• Priority support',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.later, style: const TextStyle(color: Colors.white70)),
+            child: const Text('Later', style: TextStyle(color: Colors.white70)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -343,14 +342,13 @@ class AppDrawer extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF00FF00),
             ),
-            child: Text(
-              l10n.upgradeNow,
-              style: const TextStyle(color: Colors.black),
+            child: const Text(
+              'Upgrade Now',
+              style: TextStyle(color: Colors.black),
             ),
           ),
         ],
-      );
-      },
+      ),
     );
   }
 
@@ -401,13 +399,11 @@ class AppDrawer extends StatelessWidget {
     
     showDialog(
       context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context)!;
-        return AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: Text(
-          l10n.sendFeedback,
-          style: const TextStyle(color: Colors.white),
+        title: const Text(
+          'Send Feedback',
+          style: TextStyle(color: Colors.white),
         ),
         content: TextField(
           controller: feedbackController,
@@ -425,7 +421,7 @@ class AppDrawer extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.cancel, style: const TextStyle(color: Colors.white70)),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -437,27 +433,24 @@ class AppDrawer extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF00FF00),
             ),
-            child: Text(
-              l10n.send,
-              style: const TextStyle(color: Colors.black),
+            child: const Text(
+              'Send',
+              style: TextStyle(color: Colors.black),
             ),
           ),
         ],
-      );
-      },
+      ),
     );
   }
 
   void _showPrivacyPolicy(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context)!;
-        return AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: Text(
-          l10n.privacyPolicy,
-          style: const TextStyle(color: Colors.white),
+        title: const Text(
+          'Privacy Policy',
+          style: TextStyle(color: Colors.white),
         ),
         content: const SingleChildScrollView(
           child: Text(
@@ -474,58 +467,54 @@ class AppDrawer extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.close, style: const TextStyle(color: Color(0xFF00FF00))),
+            child: const Text('Close', style: TextStyle(color: Color(0xFF00FF00))),
           ),
         ],
-      );
-      },
+      ),
     );
   }
 
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) {
-        final l10n = AppLocalizations.of(context)!;
-        return AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: Text(
-          '${l10n.about} Velora Drive',
-          style: const TextStyle(color: Colors.white),
+        title: const Text(
+          'About Velora Drive',
+          style: TextStyle(color: Colors.white),
         ),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${l10n.appTitle} — Smart Dashboard',
-              style: const TextStyle(
+              'Velora Drive — Smart Dashboard',
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'Version 1.0.0',
               style: TextStyle(color: Colors.white70),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
               'A GPS-based speedometer app with real-time speed tracking, '
               'distance measurement, and trip history.',
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.white70),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(l10n.close, style: const TextStyle(color: Color(0xFF00FF00))),
+            child: const Text('Close', style: TextStyle(color: Color(0xFF00FF00))),
           ),
         ],
-      );
-      },
+      ),
     );
   }
 }
@@ -725,7 +714,7 @@ class _AmbientLightSettingsState extends State<_AmbientLightSettings> {
 
           // ── Manual Override ──
           Text(
-            AppLocalizations.of(context)!.overrideMode,
+            'Override Mode (for testing)',
             style: TextStyle(
               color: LightThemePalette.textSecondary(mode),
               fontSize: 13,
@@ -768,15 +757,21 @@ class _AmbientLightSettingsState extends State<_AmbientLightSettings> {
                 const SizedBox(height: 8),
                 const _InfoRow(
                   icon: Icons.wb_sunny,
-                  color: Color(0xFF00C2FF),
-                  title: '☀️ Day  (> 100 lux)',
-                  body: 'Electric blue UI. High-contrast, legible in bright conditions.',
+                  color: Color(0xFF00FF00),
+                  title: '☀️ Day  (> 200 lux)',
+                  body: 'Neon green, high-contrast whites. Legible in direct sunlight.',
                 ),
                 const _InfoRow(
                   icon: Icons.wb_twilight,
-                  color: Color(0xFFBF5FFF),
-                  title: '🌆 Dim Mode  (≤ 100 lux)',
-                  body: 'Violet purple UI. Comfortable for dusk driving and underground parking.',
+                  color: Color(0xFFFFBF00),
+                  title: '🌆 Twilight  (10–200 lux)',
+                  body: 'Soft amber, reduced brightness. Ideal for dusk or garages.',
+                ),
+                const _InfoRow(
+                  icon: Icons.nightlight_round,
+                  color: Color(0xFFFF2400),
+                  title: '🌙 Night  (< 10 lux)',
+                  body: 'Aviation red-shift. Preserves rhodopsin / night vision.',
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -837,7 +832,7 @@ class _LiveLuxCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                AppLocalizations.of(context)!.liveAmbientLight,
+                'Live Ambient Light',
                 style: TextStyle(
                   color: LightThemePalette.textSecondary(mode),
                   fontSize: 12,
@@ -978,9 +973,9 @@ class _OverrideSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final modes = [
       (null,               '🔄 Auto',     const Color(0xFFFFFFFF).withAlpha(130)),
-      (LightMode.day,      '☀️ Day',      const Color(0xFF00C2FF)),   // electric blue  (> 100 lx)
-      (LightMode.twilight, '🌆 Dim',      const Color(0xFFBF5FFF)),   // violet purple  (≤ 100 lx)
-      (LightMode.night,    '🌙 Night',    const Color(0xFFBF5FFF)),   // violet purple  (< 10 lx)
+      (LightMode.day,      '☀️ Day',      const Color(0xFF00FF00)),
+      (LightMode.twilight, '🌆 Twilight', const Color(0xFFFFBF00)),
+      (LightMode.night,    '🌙 Night',    const Color(0xFFFF2400)),
     ];
 
     return Wrap(
